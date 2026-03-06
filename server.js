@@ -342,14 +342,24 @@ app.post('/api/ai/search-policies', requireAuth, async (req, res) => {
     const { itemText, criteria, checklistItems, searchQuery, docIds } = req.body;
     const locationId = getLocationFilter(req);
 
-    const query = docIds && docIds.length
-      ? { _id: { $in: docIds } }
-      : locationId
-        ? { $or: [{ locationId }, { shared: true }] }
-        : {};
+    // Fetch all docs then filter in JS — avoids NeDB quirks with null field matching
+    const allDocs = await db.documents.find({});
+    let docs;
+    if (docIds && docIds.length) {
+      docs = allDocs.filter(d => docIds.includes(d._id));
+    } else if (locationId) {
+      docs = allDocs.filter(d => d.shared === true || d.locationId === locationId);
+    } else {
+      docs = allDocs; // admin with no location filter — search everything
+    }
 
-    const docs = await db.documents.find(query);
-    if (!docs.length) return res.json({ matches: [], message: 'No documents uploaded yet. Please upload your handbooks and policies first.' });
+    if (!docs.length) {
+      const total = allDocs.length;
+      return res.json({ matches: [], message: total > 0
+        ? `Found ${total} document(s) in the system but none matched your current location. Check the Documents tab to confirm documents are assigned correctly.`
+        : 'No documents uploaded yet. Please upload your handbooks and policies first.'
+      });
+    }
 
     // Build rich keyword list — include short words (GSQ uses "oral", "play", "home", "care")
     const allText = [itemText, criteria, searchQuery, ...(checklistItems || [])].filter(Boolean).join(' ');
