@@ -379,22 +379,23 @@ app.post('/api/ai/search-policies', requireAuth, async (req, res) => {
     if (docIds && docIds.length) {
       docs = allDocs.filter(d => docIds.includes(d._id));
     } else if (locationId) {
+      // Include docs for this location AND all shared docs
       docs = allDocs.filter(d => d.shared === true || d.locationId === locationId);
     } else {
+      // Admin with no location selected — search ALL documents
       docs = allDocs;
     }
 
-    console.log(`Policy search: ${docs.length} docs available for locationId=${locationId}`);
-    docs.forEach(d => console.log(` - "${d.docName}" shared=${d.shared} locId=${d.locationId} pages=${(d.pages||[]).length}`));
+    console.log(`Policy search: locationId="${locationId}", ${docs.length}/${allDocs.length} docs in scope`);
+    docs.forEach(d => console.log(` - "${d.docName}" shared=${d.shared} loc=${d.locationId} pages=${(d.pages||[]).length}`));
 
     if (!docs.length) {
-      return res.json({ matches: [], message: `No documents found. Total in system: ${allDocs.length}. Check Documents tab.` });
+      return res.json({ matches: [], message: `No documents found. Total in system: ${allDocs.length}. Check the Documents tab.` });
     }
 
-    // Check if any docs actually have pages stored
     const docsWithPages = docs.filter(d => (d.pages || []).length > 0);
     if (!docsWithPages.length) {
-      return res.json({ matches: [], message: `${docs.length} document(s) found but none have indexed text. Use the 🔄 Re-index button in the Documents tab for each document, then try again.` });
+      return res.json({ matches: [], message: `${docs.length} document(s) found but none have indexed text yet. Click the 🔄 Re-index button on each document in the Documents tab, then try again.` });
     }
 
     // Build keyword list (include short words — GSQ uses "oral", "play", "home", "care")
