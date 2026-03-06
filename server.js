@@ -31,6 +31,7 @@ const db = {
   locations: Datastore.create({ filename: path.join(DATA_DIR, 'locations.db'), autoload: true }),
   responses: Datastore.create({ filename: path.join(DATA_DIR, 'responses.db'), autoload: true }),
   evidence:  Datastore.create({ filename: path.join(DATA_DIR, 'evidence.db'),  autoload: true }),
+  todoItems: Datastore.create({ filename: path.join(DATA_DIR, 'todo.db'),      autoload: true }),
   documents: Datastore.create({ filename: path.join(DATA_DIR, 'documents.db'), autoload: true }),
 };
 
@@ -480,6 +481,75 @@ If truly nothing is relevant, return: []`;
     console.log(`AI returned ${matches.length} matches`);
 
     res.json({ matches });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+
+// ─── EVIDENCE TRACKER (physical evidence & to-do list) ───────────────────────
+
+// Get all tracker items for a location
+app.get('/api/tracker', requireAuth, async (req, res) => {
+  try {
+    const locationId = getLocationFilter(req);
+    const allItems = await db.todoItems.find({});
+    const items = locationId
+      ? allItems.filter(i => i.locationId === locationId)
+      : allItems;
+    res.json(items);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Add/update a tracker item (todo or uploaded)
+app.post('/api/tracker', requireAuth, async (req, res) => {
+  try {
+    const { itemId, sectionId, evidenceLabel, status, notes } = req.body;
+    const locationId = req.session.role === 'admin'
+      ? (req.body.locationId || currentLocId || 'admin')
+      : req.session.locationId;
+    const existing = await db.todoItems.findOne({ itemId, sectionId, evidenceLabel, locationId });
+    if (existing) {
+      await db.todoItems.update({ _id: existing._id }, { $set: { status, notes, updatedAt: new Date() } });
+      res.json({ ok: true, _id: existing._id });
+    } else {
+      const doc = await db.todoItems.insert({ itemId, sectionId, evidenceLabel, locationId, status, notes: notes || '', createdAt: new Date(), updatedAt: new Date() });
+      res.json(doc);
+    }
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Upload physical evidence file and attach to tracker item
+app.post('/api/tracker/upload', requireAuth, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file' });
+    const { itemId, sectionId, evidenceLabel, notes } = req.body;
+    const locationId = req.session.role === 'admin'
+      ? (req.body.locationId || 'admin')
+      : req.session.locationId;
+    const doc = await db.todoItems.insert({
+      itemId, sectionId, evidenceLabel, locationId,
+      status: 'uploaded',
+      notes: notes || '',
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    res.json(doc);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Delete a tracker item
+app.delete('/api/tracker/:id', requireAuth, async (req, res) => {
+  try {
+    const item = await db.todoItems.findOne({ _id: req.params.id });
+    if (item && item.filename) {
+      const fp = path.join(UPLOADS_DIR, item.filename);
+      if (fs.existsSync(fp)) fs.unlinkSync(fp);
+    }
+    await db.todoItems.remove({ _id: req.params.id }, {});
+    res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
