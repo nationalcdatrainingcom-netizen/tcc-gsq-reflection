@@ -15,8 +15,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Ensure directories exist
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
-const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
+const BASE_DIR = process.env.DISK_PATH || __dirname;
+const DATA_DIR = path.join(BASE_DIR, 'data');
+const UPLOADS_DIR = path.join(BASE_DIR, 'uploads');
 [DATA_DIR, UPLOADS_DIR, path.join(__dirname, 'public')].forEach(dir => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
@@ -350,37 +351,37 @@ app.post('/api/ai/search-policies', requireAuth, async (req, res) => {
     const docs = await db.documents.find(query);
     if (!docs.length) return res.json({ matches: [], message: 'No documents uploaded yet. Please upload your handbooks and policies first.' });
 
-    const keywords = (searchQuery || itemText || '').toLowerCase()
-      .replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 3);
+    // Build rich keyword list — include short words (GSQ uses "oral", "play", "home", "care")
+    const allText = [itemText, criteria, searchQuery, ...(checklistItems || [])].filter(Boolean).join(' ');
+    const stopWords = new Set(['the','and','for','are','that','this','with','have','from','they','will','been','their','what','when','your','which','into','more','also','each','does','show','must','least','one','two','all','how','its','per','not','but','may']);
+    const keywords = [...new Set(
+      allText.toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter(w => w.length >= 3 && !stopWords.has(w))
+    )];
 
+    // Score every page across all documents
     let pagePool = [];
     docs.forEach(doc => {
       (doc.pages || []).forEach(p => {
+        if (!p.text || p.text.trim().length < 20) return;
         const lower = p.text.toLowerCase();
         const hits = keywords.filter(k => lower.includes(k)).length;
-        if (hits > 0) {
-          pagePool.push({ docId: doc._id, docName: doc.docName, docType: doc.docType, page: p.page, text: p.text, hits });
-        }
+        pagePool.push({ docId: doc._id, docName: doc.docName, docType: doc.docType, page: p.page, text: p.text, hits });
       });
     });
 
-    if (!pagePool.length) {
-      // fallback: include all pages if keyword match found nothing
-      docs.forEach(doc => {
-        (doc.pages || []).slice(0, 5).forEach(p => {
-          pagePool.push({ docId: doc._id, docName: doc.docName, docType: doc.docType, page: p.page, text: p.text, hits: 0 });
-        });
-      });
-    }
-
+    // Sort by score; always send top 25 pages regardless of score so AI sees something
     pagePool.sort((a, b) => b.hits - a.hits);
-    const topPages = pagePool.slice(0, 20);
+    const topPages = pagePool.slice(0, 25);
 
+    // More text per page (1200 chars) gives AI enough context to find relevant passages
     const contextText = topPages.map(p =>
-      `[Document: "${p.docName}" | Type: ${p.docType} | Page ${p.page}]\n${p.text.slice(0, 700)}`
+      `[Document: "${p.docName}" | Type: ${p.docType} | Page ${p.page} | Keyword hits: ${p.hits}]\n${p.text.slice(0, 1200)}`
     ).join('\n\n---\n\n');
 
-    const prompt = `You are a Michigan Great Start to Quality (GSQ) QRIS compliance expert helping a childcare director complete their self-reflection.
+    const prompt = `You are a Michigan Great Start to Quality (GSQ) QRIS compliance expert helping a childcare director complete their self-reflection for a 5-star rating.
 
 INDICATOR BEING EVALUATED:
 ${itemText}
@@ -388,25 +389,34 @@ ${itemText}
 WHAT EVALUATORS ARE LOOKING FOR:
 ${checklistItems ? checklistItems.map((c, i) => `${i + 1}. ${c}`).join('\n') : criteria || 'General compliance evidence'}
 
-${searchQuery ? `DIRECTOR'S SEARCH QUERY: "${searchQuery}"` : ''}
+${searchQuery ? `DIRECTOR\'S SEARCH QUERY: "${searchQuery}"` : ''}
+
+IMPORTANT INSTRUCTIONS:
+- Search broadly and generously. A policy that is RELATED to this indicator counts even if it does not use the exact same words.
+- A "Parent Communication Policy" is evidence for sharing developmental progress with families.
+- A "Daily Schedule" section counts for an indicator about daily routines.
+- A staff handbook section on illness/absence counts for personnel policies.
+- Look for ANY section heading, paragraph, bullet point, or statement that addresses the topic.
+- Be GENEROUS in matching. It is better to suggest something that gets dismissed than to miss valid evidence.
+- If document text appears cut off, still include it if the beginning is relevant.
 
 DOCUMENT PAGES TO SEARCH:
 ${contextText}
 
-Find ALL passages in the above documents that could serve as policy citations or evidence for this GSQ indicator. Look for policies, procedures, descriptions, statements, handbook sections, and any text that addresses what evaluators are looking for.
+Find ALL passages that could serve as policy citations or evidence for this GSQ indicator.
 
-Respond ONLY with a valid JSON array (no markdown, no preamble, no explanation):
+Respond ONLY with a valid JSON array (no markdown, no preamble, no explanation outside the JSON):
 [
   {
-    "docName": "name of document",
+    "docName": "exact document name from the pages above",
     "docType": "staff_handbook|family_handbook|policy|other",
     "page": <page number as integer>,
-    "excerpt": "<2-4 sentence direct quote from the document>",
-    "relevance": "<1 sentence explaining why this passage is evidence for this indicator>"
+    "excerpt": "<copy 2-4 sentences directly from the document text above>",
+    "relevance": "<one sentence: which checklist item this satisfies and why>"
   }
 ]
 
-If no relevant passages are found, return: []`;
+If truly nothing is relevant at all, return: []`;
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -417,19 +427,22 @@ If no relevant passages are found, return: []`;
       },
       body: JSON.stringify({
         model: 'claude-opus-4-5',
-        max_tokens: 2500,
+        max_tokens: 3000,
         messages: [{ role: 'user', content: prompt }]
       })
     });
 
     const data = await response.json();
     let text = (data.content?.[0]?.text || '[]').replace(/```json|```/g, '').trim();
+    // Sometimes the model wraps in extra text — extract just the JSON array
+    const arrMatch = text.match(/\[[\s\S]*\]/);
     let matches = [];
-    try { matches = JSON.parse(text); } catch { matches = []; }
+    try { matches = JSON.parse(arrMatch ? arrMatch[0] : text); } catch { matches = []; }
 
     res.json({ matches });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
 
 // ─── PROGRESS ──────────────────────────────────────────────────────────────────
 app.get('/api/progress', requireAuth, async (req, res) => {
