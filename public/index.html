@@ -233,6 +233,56 @@ textarea.narr:focus{outline:none;border-color:var(--gold);background:white}
 /* ── NO-SELECT ── */
 .no-select-msg{display:flex;align-items:center;justify-content:center;height:100%;min-height:300px;flex-direction:column;gap:10px;color:var(--muted)}
 .no-select-msg .ei{font-size:3rem}
+
+/* Evidence Tracker */
+.et-section { margin-bottom: 1.5rem; }
+.et-section-hdr { font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: var(--navy); background: var(--cream2); padding: .4rem 1rem; border-radius: 8px; margin-bottom: .5rem; }
+.et-item { background: white; border: 1.5px solid var(--border); border-radius: 10px; padding: .75rem 1rem; margin-bottom: .5rem; transition: border-color .15s; }
+.et-item[data-status="uploaded"], .et-item[data-status="done"] { border-color: var(--green); background: var(--green-bg); }
+.et-item[data-status="todo"] { border-color: #f59e0b; background: #fffbeb; }
+.et-item-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+.et-item-info { display: flex; align-items: flex-start; gap: .75rem; flex: 1; min-width: 200px; }
+.et-indicator-badge { font-size: .72rem; font-weight: 800; background: var(--navy); color: white; padding: 2px 8px; border-radius: 20px; white-space: nowrap; margin-top: 2px; }
+.et-item-title { font-size: .88rem; font-weight: 600; color: var(--navy); line-height: 1.4; }
+.et-item-sub { font-size: .78rem; color: var(--muted); margin-top: 2px; }
+.et-item-actions { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; }
+.et-status-dot { font-size: .78rem; font-weight: 700; white-space: nowrap; }
+.et-notes { font-size: .8rem; color: var(--muted); margin-top: .5rem; padding-top: .5rem; border-top: 1px solid var(--border); font-style: italic; }
+.btn-gold { background: #f59e0b; color: white; border-color: #f59e0b; }
+.btn-gold:hover { background: #d97706; border-color: #d97706; }
+
+/* Readiness Report */
+.rpt-section { margin-bottom: 2rem; }
+.rpt-section-hdr { display:flex; justify-content:space-between; align-items:center; background:var(--navy); color:white; padding:.6rem 1.1rem; border-radius:10px 10px 0 0; font-weight:700; font-size:.9rem; }
+.rpt-section-score { font-size:.8rem; opacity:.85; }
+.rpt-item { border:1.5px solid var(--border); border-top:none; padding:.85rem 1.1rem; background:white; }
+.rpt-item:last-child { border-radius:0 0 10px 10px; }
+.rpt-item-hdr { display:flex; justify-content:space-between; align-items:flex-start; gap:.75rem; margin-bottom:.5rem; }
+.rpt-item-title { font-weight:700; font-size:.88rem; color:var(--navy); }
+.rpt-item-sub { font-size:.78rem; color:var(--muted); margin-top:1px; }
+.rpt-readiness { display:flex; gap:.35rem; align-items:center; white-space:nowrap; font-size:.78rem; font-weight:700; padding:3px 10px; border-radius:20px; }
+.rpt-readiness.full { background:var(--green-bg); color:var(--green); }
+.rpt-readiness.partial { background:#fef3c7; color:#92400e; }
+.rpt-readiness.none { background:var(--red-bg); color:var(--red); }
+.rpt-evidence-list { display:flex; flex-direction:column; gap:.35rem; }
+.rpt-ev-row { display:flex; align-items:flex-start; gap:.6rem; font-size:.82rem; padding:.35rem .6rem; border-radius:7px; }
+.rpt-ev-row.have { background:var(--green-bg); color:#1a4731; }
+.rpt-ev-row.todo { background:#fef3c7; color:#78350f; }
+.rpt-ev-row.missing { background:var(--red-bg); color:#7f1d1d; }
+.rpt-ev-icon { flex-shrink:0; margin-top:1px; }
+.rpt-ev-text { flex:1; line-height:1.4; }
+.rpt-ev-source { font-size:.73rem; opacity:.8; margin-top:1px; }
+.rpt-summary-bar { display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:1.75rem; }
+.rpt-sum-card { flex:1; min-width:130px; background:white; border:1.5px solid var(--border); border-radius:12px; padding:.9rem 1.1rem; text-align:center; }
+.rpt-sum-num { font-size:1.8rem; font-weight:800; line-height:1; margin-bottom:.25rem; }
+.rpt-sum-lbl { font-size:.75rem; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+.rpt-print-btn { float:right; }
+@media print {
+  .topbar, .sidebar, nav, .nav-tabs, #toast, .rpt-print-btn { display:none !important; }
+  .view { display:block !important; }
+  body { background:white; }
+  .rpt-item { break-inside:avoid; }
+}
 </style>
 </head>
 <body>
@@ -262,6 +312,8 @@ textarea.narr:focus{outline:none;border-color:var(--gold);background:white}
       <button class="nav-tab active" onclick="showView('dashboard',this)">📊 Dashboard</button>
       <button class="nav-tab" onclick="showView('reflection',this)">📋 Self-Reflection</button>
       <button class="nav-tab" onclick="showView('documents',this)">📁 Documents</button>
+      <button class="nav-tab" onclick="showView('evidence',this)">📎 Evidence Tracker</button>
+      <button class="nav-tab" onclick="showView('report',this)">📊 Readiness Report</button>
       <button class="nav-tab admin-only" onclick="showView('admin',this)" style="display:none">⚙️ Admin</button>
     </nav>
     <div class="user-pill" id="userPill">
@@ -282,6 +334,8 @@ textarea.narr:focus{outline:none;border-color:var(--gold);background:white}
         <div id="secEditorWrap" style="display:none"></div>
       </div>
       <div class="view" id="view-documents"><div id="docsContent"></div></div>
+      <div class="view" id="view-evidence"><div id="evidenceContent"></div></div>
+      <div class="view" id="view-report"><div id="reportContent" style="padding:1.5rem 2rem"></div></div>
       <div class="view admin-only" id="view-admin" style="display:none"><div id="adminContent"></div></div>
       <div class="view" id="view-settings"><div id="settingsContent"></div></div>
     </main>
@@ -385,6 +439,8 @@ function showView(name, btn) {
   document.getElementById('sidebar').style.display = name === 'reflection' ? 'flex' : 'none';
   if (name === 'dashboard') renderDashboard();
   if (name === 'documents') renderDocsView();
+  if (name === 'evidence') renderEvidenceTracker();
+  if (name === 'report') renderReadinessReport();
   if (name === 'admin' && me.role === 'admin') renderAdminView();
 }
 
@@ -1102,6 +1158,387 @@ function toast(msg, type) {
     await initApp();
   }
 })();
+
+// ═══════════════════════════════════════════
+// EVIDENCE TRACKER
+// ═══════════════════════════════════════════
+
+// Identify which evidence items from the framework need PHYSICAL evidence (not just policy docs)
+function getPhysicalEvidenceItems() {
+  const physicalKeywords = [
+    'completed', 'photo', 'picture', 'copy of', 'training record', 'certificate',
+    'screenshot', 'form', 'meeting minutes', 'agenda', 'membership', 'roster',
+    'lesson plan', 'score page', 'results page', 'anecdotal', 'survey', 'enrollment',
+    'conference form', 'written communication', 'feedback', 'schedule'
+  ];
+  const policyOnly = ['policy','procedure','statement','description','handbook','contract'];
+
+  const items = [];
+  framework.forEach(section => {
+    section.items.forEach(item => {
+      if (!item.evidenceExamples) return;
+      const physEvidence = item.evidenceExamples.filter(ex => {
+        const lower = ex.toLowerCase();
+        const hasPhysical = physicalKeywords.some(k => lower.includes(k));
+        const isPolicyOnly = policyOnly.every(k => lower.includes(k)) && !hasPhysical;
+        return hasPhysical && !isPolicyOnly;
+      });
+      if (physEvidence.length > 0) {
+        items.push({ section, item, physEvidence });
+      }
+    });
+  });
+  return items;
+}
+
+async function renderEvidenceTracker() {
+  const locId = currentLocId || (me.role !== 'admin' ? me.locationId : null);
+  const wrap = document.getElementById('evidenceContent');
+  wrap.innerHTML = '<div style="padding:2rem;text-align:center"><span class="spin dark"></span></div>';
+
+  // Load tracker items for this location
+  const url = locId ? `/api/tracker?locationId=${locId}` : '/api/tracker';
+  const r = await fetch(url);
+  const trackerItems = await r.json();
+  const trackerMap = {}; // key: `${itemId}||${evidenceLabel}` → tracker record
+  trackerItems.forEach(t => { trackerMap[`${t.itemId}||${t.evidenceLabel}`] = t; });
+
+  const physItems = getPhysicalEvidenceItems();
+
+  // Count stats
+  const total = physItems.reduce((n, p) => n + p.physEvidence.length, 0);
+  const uploaded = trackerItems.filter(t => t.status === 'uploaded').length;
+  const todo = trackerItems.filter(t => t.status === 'todo').length;
+  const done = trackerItems.filter(t => t.status === 'done').length;
+
+  let html = `
+<div style="padding:1.5rem 2rem 0">
+  <h2 style="color:var(--navy);margin:0 0 .25rem">📎 Evidence Tracker</h2>
+  <p style="color:var(--muted);margin:0 0 1.25rem">Physical evidence required beyond policy documents — upload files or mark items for your to-gather list.</p>
+  <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1.5rem">
+    <div class="stat-card" style="flex:1;min-width:120px"><div class="stat-num">${total}</div><div class="stat-label">Items Needed</div></div>
+    <div class="stat-card" style="flex:1;min-width:120px;border-color:var(--green)"><div class="stat-num" style="color:var(--green)">${uploaded + done}</div><div class="stat-label">Complete</div></div>
+    <div class="stat-card" style="flex:1;min-width:120px;border-color:#f59e0b"><div class="stat-num" style="color:#f59e0b">${todo}</div><div class="stat-label">On To-Do List</div></div>
+    <div class="stat-card" style="flex:1;min-width:120px;border-color:var(--red)"><div class="stat-num" style="color:var(--red)">${total - uploaded - done - todo}</div><div class="stat-label">Not Started</div></div>
+  </div>`;
+
+  // Filter bar
+  html += `
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.25rem;align-items:center">
+    <span style="font-size:.82rem;color:var(--muted);font-weight:600">FILTER:</span>
+    <button class="btn btn-sm btn-outline etfilter active" data-filter="all" onclick="filterEvidence(this,'all')">All</button>
+    <button class="btn btn-sm btn-outline etfilter" data-filter="not-started" onclick="filterEvidence(this,'not-started')">Not Started</button>
+    <button class="btn btn-sm btn-outline etfilter" data-filter="todo" onclick="filterEvidence(this,'todo')">📋 To-Do List</button>
+    <button class="btn btn-sm btn-outline etfilter" data-filter="uploaded" onclick="filterEvidence(this,'uploaded')">✅ Uploaded</button>
+  </div>`;
+
+  // Section groups
+  physItems.forEach(({ section, item, physEvidence }) => {
+    html += `<div class="et-section" data-section="${section.id}">
+      <div class="et-section-hdr">${section.name}</div>`;
+
+    physEvidence.forEach((evLabel, idx) => {
+      const key = `${item.id}||${evLabel}`;
+      const tracked = trackerMap[key];
+      const status = tracked ? tracked.status : 'not-started';
+      const statusColors = { 'uploaded':'var(--green)', 'done':'var(--green)', 'todo':'#f59e0b', 'not-started':'var(--muted)' };
+      const statusIcons = { 'uploaded':'✅', 'done':'✅', 'todo':'📋', 'not-started':'○' };
+      const encodedLabel = encodeURIComponent(evLabel);
+
+      html += `<div class="et-item" data-status="${status}" data-key="${key}">
+        <div class="et-item-top">
+          <div class="et-item-info">
+            <span class="et-indicator-badge">${item.id}</span>
+            <div>
+              <div class="et-item-title">${evLabel}</div>
+              <div class="et-item-sub">${item.title.replace(/^[A-Z0-9]+ – /,'')}</div>
+            </div>
+          </div>
+          <div class="et-item-actions">
+            <span class="et-status-dot" style="color:${statusColors[status]};font-size:.8rem;font-weight:700">${statusIcons[status]} ${status === 'not-started' ? 'Not started' : status === 'todo' ? 'On to-do list' : status === 'uploaded' ? 'Uploaded' : 'Done'}</span>
+            ${tracked && tracked.filename
+              ? `<a href="/uploads/${tracked.filename}" target="_blank" class="btn btn-sm btn-outline" title="View uploaded file">👁 View</a>`
+              : ''}
+            <button class="btn btn-sm btn-gold" onclick="uploadTrackerFile('${item.id}','${section.id}','${encodedLabel}','${locId||''}',this)">⬆️ Upload</button>
+            ${status !== 'todo'
+              ? `<button class="btn btn-sm btn-outline" onclick="markTrackerTodo('${item.id}','${section.id}','${encodedLabel}','${locId||''}',this)" title="Add to to-do list">📋 To-Do</button>`
+              : `<button class="btn btn-sm btn-outline" style="color:var(--red)" onclick="removeTrackerItem('${tracked._id}',this)" title="Remove from to-do list">✕ Remove</button>`}
+            ${tracked ? `<button class="btn btn-sm btn-outline" style="color:var(--red)" onclick="deleteTrackerItem('${tracked._id}',this)">🗑</button>` : ''}
+          </div>
+        </div>
+        ${tracked && tracked.notes ? `<div class="et-notes">${tracked.notes}</div>` : ''}
+      </div>`;
+    });
+
+    html += `</div>`;
+  });
+
+  // To-do list summary at bottom
+  const todoList = trackerItems.filter(t => t.status === 'todo');
+  if (todoList.length > 0) {
+    html += `
+    <div style="margin-top:2rem;padding:1.25rem;background:var(--cream2);border-radius:12px;border:1.5px solid #f59e0b">
+      <h3 style="margin:0 0 1rem;color:#92400e;font-size:1rem">📋 Your To-Gather List (${todoList.length} items)</h3>
+      <p style="font-size:.82rem;color:var(--muted);margin:0 0 .75rem">These items still need to be gathered and uploaded.</p>`;
+    todoList.forEach(t => {
+      html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem .75rem;background:white;border-radius:8px;margin-bottom:.5rem;font-size:.85rem">
+        <span><strong style="color:var(--navy)">${t.itemId}</strong> — ${t.evidenceLabel}</span>
+        <button class="btn btn-sm btn-gold" onclick="uploadTrackerFile('${t.itemId}','${t.sectionId}','${encodeURIComponent(t.evidenceLabel)}','${locId||''}',this)">⬆️ Upload</button>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  html += `</div>`;
+  wrap.innerHTML = html;
+}
+
+function filterEvidence(btn, filter) {
+  document.querySelectorAll('.etfilter').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.et-item').forEach(el => {
+    if (filter === 'all') el.style.display = '';
+    else el.style.display = el.dataset.status === filter ? '' : 'none';
+  });
+  document.querySelectorAll('.et-section').forEach(sec => {
+    const visible = [...sec.querySelectorAll('.et-item')].some(el => el.style.display !== 'none');
+    sec.style.display = visible ? '' : 'none';
+  });
+}
+
+async function markTrackerTodo(itemId, sectionId, encodedLabel, locId, btn) {
+  const orig = btn.innerHTML; btn.innerHTML = '<span class="spin dark"></span>'; btn.disabled = true;
+  const evidenceLabel = decodeURIComponent(encodedLabel);
+  try {
+    await fetch('/api/tracker', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ itemId, sectionId, evidenceLabel, locationId: locId || currentLocId || me.locationId, status: 'todo' }) });
+    toast('Added to to-do list 📋', 'ok');
+    renderEvidenceTracker();
+  } catch(e) { toast('Error: ' + e.message, 'err'); btn.innerHTML = orig; btn.disabled = false; }
+}
+
+function uploadTrackerFile(itemId, sectionId, encodedLabel, locId, btn) {
+  const evidenceLabel = decodeURIComponent(encodedLabel);
+  const modalBody = document.getElementById('modalBody');
+  const modalFoot = document.getElementById('modalFoot');
+  document.getElementById('modalTitle').textContent = 'Upload Evidence';
+  modalBody.innerHTML = `
+    <p style="margin:0 0 1rem;font-size:.88rem;color:var(--muted)"><strong>${itemId}:</strong> ${evidenceLabel}</p>
+    <div class="form-row">
+      <label>Select File</label>
+      <input type="file" id="trackerFileInput" style="font-size:.88rem">
+    </div>
+    <div class="form-row">
+      <label>Notes (optional)</label>
+      <input type="text" id="trackerNotes" placeholder="e.g. Spring 2025 assessment results" style="width:100%;padding:.5rem;border:1.5px solid var(--border);border-radius:8px;font-size:.88rem">
+    </div>`;
+  modalFoot.innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" id="trackerUploadBtn" onclick="submitTrackerUpload('${itemId}','${sectionId}','${encodedLabel}','${locId}')">⬆️ Upload</button>`;
+  document.getElementById('genericModal').classList.add('active');
+}
+
+async function submitTrackerUpload(itemId, sectionId, encodedLabel, locId) {
+  const fileInput = document.getElementById('trackerFileInput');
+  const notes = document.getElementById('trackerNotes').value;
+  const btn = document.getElementById('trackerUploadBtn');
+  if (!fileInput.files[0]) { toast('Please select a file', 'err'); return; }
+  btn.innerHTML = '<span class="spin"></span> Uploading…'; btn.disabled = true;
+  const fd = new FormData();
+  fd.append('file', fileInput.files[0]);
+  fd.append('itemId', itemId);
+  fd.append('sectionId', sectionId);
+  fd.append('evidenceLabel', decodeURIComponent(encodedLabel));
+  fd.append('locationId', locId || currentLocId || me.locationId || '');
+  fd.append('notes', notes);
+  try {
+    const r = await fetch('/api/tracker/upload', { method:'POST', body: fd });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    closeModal();
+    toast('Evidence uploaded ✅', 'ok');
+    renderEvidenceTracker();
+  } catch(e) { toast('Upload failed: ' + e.message, 'err'); btn.innerHTML = '⬆️ Upload'; btn.disabled = false; }
+}
+
+async function deleteTrackerItem(id, btn) {
+  if (!confirm('Remove this evidence item?')) return;
+  await fetch('/api/tracker/' + id, { method:'DELETE' });
+  toast('Removed');
+  renderEvidenceTracker();
+}
+
+async function removeTrackerItem(id, btn) {
+  await fetch('/api/tracker/' + id, { method:'DELETE' });
+  toast('Removed from to-do list');
+  renderEvidenceTracker();
+}
+
+// ═══════════════════════════════════════════
+// READINESS REPORT
+// ═══════════════════════════════════════════
+async function renderReadinessReport() {
+  const wrap = document.getElementById('reportContent');
+  wrap.innerHTML = '<div style="padding:2rem;text-align:center"><span class="spin dark"></span> Building report…</div>';
+
+  const locId = currentLocId || (me.role !== 'admin' ? me.locationId : null);
+  const locName = me.role === 'admin'
+    ? (locations.find(l => l._id === locId)?.name || 'All Locations')
+    : (me.name || 'Your Center');
+
+  // Load all responses for this location
+  const allResponses = {};
+  await Promise.all(framework.map(async sec => {
+    const url = `/api/responses/${sec.id}${locId ? '?locationId=' + locId : ''}`;
+    const r = await fetch(url);
+    const data = await r.json();
+    data.forEach(resp => {
+      if (!allResponses[sec.id]) allResponses[sec.id] = {};
+      allResponses[sec.id][resp.itemId] = resp;
+    });
+  }));
+
+  // Load tracker items (physical evidence)
+  const trackerUrl = locId ? `/api/tracker?locationId=${locId}` : '/api/tracker';
+  const trackerData = await (await fetch(trackerUrl)).json();
+  const trackerMap = {};
+  trackerData.forEach(t => {
+    if (!trackerMap[t.itemId]) trackerMap[t.itemId] = {};
+    trackerMap[t.itemId][t.evidenceLabel] = t;
+  });
+
+  // Helper: classify each evidence example as policy or physical
+  const physicalKeywords = ['completed','photo','picture','copy of','training record','certificate','screenshot','form','meeting minutes','agenda','membership','roster','lesson plan','score page','results page','anecdotal','survey','enrollment','conference form','written communication','feedback','schedule'];
+  function isPhysical(ex) {
+    const lower = ex.toLowerCase();
+    return physicalKeywords.some(k => lower.includes(k));
+  }
+  function isPolicyDoc(ex) {
+    const lower = ex.toLowerCase();
+    return (lower.includes('policy') || lower.includes('procedure') || lower.includes('statement') || lower.includes('description') || lower.includes('handbook')) && !isPhysical(ex);
+  }
+
+  // Tally overall stats
+  let totalEvidence = 0, evidenceHave = 0, evidenceMissing = 0, evidenceTodo = 0;
+  let itemsFull = 0, itemsPartial = 0, itemsNone = 0;
+
+  // Build report data per item
+  const reportSections = framework.map(sec => {
+    const items = sec.items.map(item => {
+      const resp = allResponses[sec.id]?.[item.id] || {};
+      const acceptedPolicies = (resp.policyMatches || []).filter(m => m.status === 'accepted');
+      const examples = item.evidenceExamples || [];
+
+      const rows = examples.map(ex => {
+        totalEvidence++;
+        if (isPolicyDoc(ex)) {
+          // Check if a policy match covers this
+          const covered = acceptedPolicies.length > 0;
+          if (covered) { evidenceHave++; return { type: 'policy', label: ex, status: 'have', source: acceptedPolicies[0].docName }; }
+          else { evidenceMissing++; return { type: 'policy', label: ex, status: 'missing', source: null }; }
+        } else if (isPhysical(ex)) {
+          // Check tracker
+          const trackerEntry = trackerMap[item.id]?.[ex];
+          if (trackerEntry) {
+            if (trackerEntry.status === 'uploaded' || trackerEntry.status === 'done') {
+              evidenceHave++;
+              return { type: 'physical', label: ex, status: 'have', source: trackerEntry.originalName || 'Uploaded file' };
+            } else if (trackerEntry.status === 'todo') {
+              evidenceTodo++;
+              return { type: 'physical', label: ex, status: 'todo', source: 'On to-do list' };
+            }
+          }
+          evidenceMissing++;
+          return { type: 'physical', label: ex, status: 'missing', source: null };
+        } else {
+          // Mixed / AND clauses — check both
+          const hasPolicyPart = acceptedPolicies.length > 0;
+          const physLabel = ex.split('AND one supporting document:')[1]?.trim() || ex;
+          const trackerEntry = trackerMap[item.id]?.[physLabel] || trackerMap[item.id]?.[ex];
+          const hasPhysPart = trackerEntry && (trackerEntry.status === 'uploaded' || trackerEntry.status === 'done');
+          const todoPhys = trackerEntry && trackerEntry.status === 'todo';
+
+          if (hasPolicyPart && hasPhysPart) { evidenceHave++; return { type: 'both', label: ex, status: 'have', source: acceptedPolicies[0]?.docName }; }
+          if (todoPhys || (hasPolicyPart && todoPhys)) { evidenceTodo++; return { type: 'both', label: ex, status: 'todo', source: hasPolicyPart ? 'Policy found; physical evidence on to-do list' : 'On to-do list' }; }
+          evidenceMissing++;
+          return { type: 'both', label: ex, status: 'missing', source: hasPolicyPart ? 'Policy found — still need supporting document' : null };
+        }
+      });
+
+      const haveCount = rows.filter(r => r.status === 'have').length;
+      const readiness = haveCount === rows.length ? 'full' : haveCount > 0 ? 'partial' : 'none';
+      if (readiness === 'full') itemsFull++;
+      else if (readiness === 'partial') itemsPartial++;
+      else itemsNone++;
+
+      return { item, resp, rows, readiness, haveCount, totalCount: rows.length };
+    });
+    return { sec, items };
+  });
+
+  // Build HTML
+  const date = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+  let html = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem">
+      <div>
+        <h2 style="margin:0;color:var(--navy)">📊 GSQ Readiness Report</h2>
+        <p style="margin:.25rem 0 0;color:var(--muted);font-size:.88rem">${locName} · Generated ${date}</p>
+      </div>
+      <button class="btn btn-outline rpt-print-btn" onclick="window.print()">🖨️ Print / Save PDF</button>
+    </div>
+
+    <div class="rpt-summary-bar">
+      <div class="rpt-sum-card"><div class="rpt-sum-num" style="color:var(--green)">${itemsFull}</div><div class="rpt-sum-lbl">Fully Ready</div></div>
+      <div class="rpt-sum-card"><div class="rpt-sum-num" style="color:#f59e0b">${itemsPartial}</div><div class="rpt-sum-lbl">Partially Ready</div></div>
+      <div class="rpt-sum-card"><div class="rpt-sum-num" style="color:var(--red)">${itemsNone}</div><div class="rpt-sum-lbl">Not Started</div></div>
+      <div class="rpt-sum-card"><div class="rpt-sum-num" style="color:var(--green)">${evidenceHave}</div><div class="rpt-sum-lbl">Evidence Items ✓</div></div>
+      <div class="rpt-sum-card"><div class="rpt-sum-num" style="color:#f59e0b">${evidenceTodo}</div><div class="rpt-sum-lbl">On To-Do List</div></div>
+      <div class="rpt-sum-card"><div class="rpt-sum-num" style="color:var(--red)">${evidenceMissing}</div><div class="rpt-sum-lbl">Still Missing</div></div>
+    </div>`;
+
+  reportSections.forEach(({ sec, items }) => {
+    const secHave = items.filter(i => i.readiness === 'full').length;
+    html += `<div class="rpt-section">
+      <div class="rpt-section-hdr">
+        <span>${sec.name}</span>
+        <span class="rpt-section-score">${secHave} of ${items.length} fully ready</span>
+      </div>`;
+
+    items.forEach(({ item, rows, readiness, haveCount, totalCount }) => {
+      const rLabel = readiness === 'full' ? '✅ All Evidence Ready' : readiness === 'partial' ? `⚠️ ${haveCount} of ${totalCount} items` : '❌ Evidence Needed';
+      html += `<div class="rpt-item">
+        <div class="rpt-item-hdr">
+          <div>
+            <div class="rpt-item-title">${item.title}</div>
+            <div class="rpt-item-sub">${item.fullText}</div>
+          </div>
+          <div class="rpt-readiness ${readiness}">${rLabel}</div>
+        </div>
+        <div class="rpt-evidence-list">`;
+
+      rows.forEach(row => {
+        const icon = row.status === 'have' ? '✅' : row.status === 'todo' ? '📋' : '❌';
+        const typeTag = row.type === 'physical' ? '<span style="font-size:.7rem;background:#e0e7ff;color:#3730a3;padding:1px 6px;border-radius:10px;margin-left:4px">physical</span>'
+          : row.type === 'policy' ? '<span style="font-size:.7rem;background:#dcfce7;color:#166534;padding:1px 6px;border-radius:10px;margin-left:4px">policy</span>'
+          : '<span style="font-size:.7rem;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:10px;margin-left:4px">policy+doc</span>';
+        html += `<div class="rpt-ev-row ${row.status}">
+          <span class="rpt-ev-icon">${icon}</span>
+          <div class="rpt-ev-text">
+            <span>${row.label}</span>${typeTag}
+            ${row.source ? `<div class="rpt-ev-source">→ ${row.source}</div>` : row.status === 'missing' ? `<div class="rpt-ev-source" style="color:var(--red)">→ Not yet provided</div>` : ''}
+          </div>
+        </div>`;
+      });
+
+      html += `</div></div>`;
+    });
+
+    html += `</div>`;
+  });
+
+  wrap.innerHTML = html;
+}
+
 </script>
 </body>
 </html>
