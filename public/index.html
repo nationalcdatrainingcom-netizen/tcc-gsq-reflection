@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GSQ Self-Reflection Tool — The Children's Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #1a2744;
+  --navy-light: #253561;
+  --gold: #c8973a;
+  --gold-light: #e8b85a;
+  --cream: #faf8f4;
+  --cream2: #f2ede4;
+  --text: #2c2c2c;
+  --text-muted: #6b6b6b;
+  --border: #ddd6c8;
+  --success: #2d7a4a;
+  --success-light: #e8f5ed;
+  --warn: #a05c1a;
+  --warn-light: #fef3e2;
+  --danger: #b03030;
+  --danger-light: #fde8e8;
+  --white: #ffffff;
+  --shadow: 0 2px 12px rgba(26,39,68,0.10);
+  --shadow-lg: 0 8px 32px rgba(26,39,68,0.15);
+  --radius: 10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Source Sans 3', sans-serif; background: var(--cream); color: var(--text); min-height: 100vh; }
+
+/* HEADER */
+.app-header {
+  background: var(--navy);
+  padding: 0 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 64px;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.25);
+}
+.app-header h1 { font-family: 'Playfair Display', serif; color: var(--gold); font-size: 1.3rem; font-weight: 600; }
+.app-header h1 span { color: rgba(255,255,255,0.6); font-family: 'Source Sans 3', sans-serif; font-weight: 300; font-size: 0.85rem; display: block; margin-top: -2px; }
+.header-nav { display: flex; gap: 4px; }
+.nav-btn { background: transparent; border: none; color: rgba(255,255,255,0.65); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-family: 'Source Sans 3', sans-serif; font-size: 0.875rem; font-weight: 500; transition: all 0.2s; }
+.nav-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+.nav-btn.active { background: var(--gold); color: var(--navy); font-weight: 600; }
+
+/* LAYOUT */
+.app-body { display: flex; height: calc(100vh - 64px); }
+.sidebar {
+  width: 280px; min-width: 280px; background: var(--white); border-right: 1px solid var(--border);
+  overflow-y: auto; display: flex; flex-direction: column;
+}
+.main-content { flex: 1; overflow-y: auto; }
+
+/* SIDEBAR */
+.sidebar-header { padding: 20px 20px 12px; border-bottom: 1px solid var(--border); }
+.sidebar-header h2 { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted); }
+.add-section-btn {
+  margin: 12px 16px 0; width: calc(100% - 32px);
+  background: var(--navy); color: white; border: none; border-radius: 8px;
+  padding: 10px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: background 0.2s;
+  font-family: 'Source Sans 3', sans-serif;
+}
+.add-section-btn:hover { background: var(--navy-light); }
+.section-list { padding: 8px 0; flex: 1; }
+.section-item {
+  padding: 10px 20px; cursor: pointer; border-left: 3px solid transparent;
+  transition: all 0.15s; display: flex; flex-direction: column; gap: 4px;
+}
+.section-item:hover { background: var(--cream); }
+.section-item.active { background: var(--cream2); border-left-color: var(--gold); }
+.section-item-name { font-weight: 600; font-size: 0.9rem; color: var(--navy); }
+.section-item-progress { display: flex; align-items: center; gap: 8px; }
+.progress-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--gold); border-radius: 2px; transition: width 0.4s; }
+.progress-text { font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; }
+
+/* VIEWS */
+.view { display: none; }
+.view.active { display: block; }
+
+/* DASHBOARD */
+.dashboard { padding: 32px; max-width: 1000px; }
+.dashboard-title { font-family: 'Playfair Display', serif; font-size: 2rem; color: var(--navy); margin-bottom: 6px; }
+.dashboard-sub { color: var(--text-muted); font-size: 1rem; margin-bottom: 32px; }
+.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 32px; }
+.stat-card { background: white; border-radius: var(--radius); padding: 20px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+.stat-card .val { font-family: 'Playfair Display', serif; font-size: 2.2rem; color: var(--navy); line-height: 1; }
+.stat-card .lbl { font-size: 0.8rem; color: var(--text-muted); margin-top: 6px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+.section-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.section-card { background: white; border-radius: var(--radius); padding: 20px; border: 1px solid var(--border); box-shadow: var(--shadow); cursor: pointer; transition: all 0.2s; }
+.section-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); border-color: var(--gold); }
+.section-card h3 { font-size: 1rem; font-weight: 600; color: var(--navy); margin-bottom: 8px; }
+.section-card .big-bar { height: 8px; background: var(--cream2); border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+.section-card .big-fill { height: 100%; background: var(--gold); border-radius: 4px; transition: width 0.5s; }
+.section-card .pct { font-size: 0.85rem; color: var(--text-muted); }
+
+/* SECTION EDITOR */
+.section-editor { padding: 32px; }
+.section-editor-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; }
+.section-editor-header h2 { font-family: 'Playfair Display', serif; font-size: 1.6rem; color: var(--navy); }
+.section-editor-header p { color: var(--text-muted); font-size: 0.9rem; margin-top: 4px; }
+.header-actions { display: flex; gap: 8px; }
+
+.item-card {
+  background: white; border: 1px solid var(--border); border-radius: var(--radius);
+  margin-bottom: 20px; box-shadow: var(--shadow); overflow: hidden;
+}
+.item-header {
+  padding: 16px 20px; display: flex; align-items: flex-start; gap: 12px;
+  cursor: pointer; transition: background 0.15s;
+}
+.item-header:hover { background: var(--cream); }
+.item-number { background: var(--navy); color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 600; flex-shrink: 0; margin-top: 2px; }
+.item-number.done { background: var(--success); }
+.item-title-block { flex: 1; }
+.item-title { font-weight: 600; font-size: 0.95rem; color: var(--navy); }
+.item-criteria { font-size: 0.82rem; color: var(--text-muted); margin-top: 3px; line-height: 1.5; }
+.item-expand-icon { color: var(--text-muted); font-size: 1.1rem; transition: transform 0.2s; }
+.item-header.open .item-expand-icon { transform: rotate(180deg); }
+
+.item-body { padding: 0 20px 20px; border-top: 1px solid var(--border); }
+.item-tabs { display: flex; gap: 0; margin: 0 -20px 20px; border-bottom: 1px solid var(--border); padding: 0 20px; }
+.item-tab { padding: 10px 16px; font-size: 0.85rem; font-weight: 500; cursor: pointer; border-bottom: 2px solid transparent; color: var(--text-muted); transition: all 0.15s; background: none; border-top: none; border-left: none; border-right: none; font-family: 'Source Sans 3', sans-serif; }
+.item-tab:hover { color: var(--navy); }
+.item-tab.active { color: var(--navy); border-bottom-color: var(--gold); font-weight: 600; }
+
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* Narrative textarea */
+.narrative-wrap { position: relative; }
+textarea.narrative {
+  width: 100%; min-height: 120px; border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 14px; font-family: 'Source Sans 3', sans-serif; font-size: 0.9rem;
+  line-height: 1.6; color: var(--text); background: var(--cream); resize: vertical;
+  transition: border 0.2s;
+}
+textarea.narrative:focus { outline: none; border-color: var(--gold); background: white; }
+.save-row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+
+/* Evidence */
+.evidence-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.evidence-item { display: flex; align-items: center; gap: 10px; background: var(--cream); border-radius: 8px; padding: 10px 14px; border: 1px solid var(--border); }
+.evidence-icon { font-size: 1.2rem; flex-shrink: 0; }
+.evidence-name { flex: 1; font-size: 0.875rem; font-weight: 500; color: var(--navy); }
+.evidence-label-input { background: transparent; border: none; border-bottom: 1px dashed var(--border); font-size: 0.8rem; color: var(--text-muted); width: 120px; font-family: 'Source Sans 3', sans-serif; }
+.evidence-link { color: var(--gold); font-size: 0.8rem; text-decoration: none; }
+.evidence-link:hover { text-decoration: underline; }
+
+/* Policy matches */
+.policy-search-bar { display: flex; gap: 8px; margin-bottom: 16px; }
+.policy-search-bar input { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; font-family: 'Source Sans 3', sans-serif; font-size: 0.875rem; }
+.policy-search-bar input:focus { outline: none; border-color: var(--gold); }
+.match-card {
+  border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 10px; background: white;
+  position: relative;
+}
+.match-card.accepted { border-color: var(--success); background: var(--success-light); }
+.match-card.dismissed { opacity: 0.4; border-style: dashed; }
+.match-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.match-source { font-size: 0.78rem; font-weight: 600; color: var(--navy); background: var(--cream2); padding: 3px 8px; border-radius: 20px; }
+.match-page { font-size: 0.78rem; color: var(--gold); font-weight: 600; }
+.match-excerpt { font-size: 0.85rem; line-height: 1.6; color: var(--text); font-style: italic; margin-bottom: 8px; }
+.match-relevance { font-size: 0.78rem; color: var(--text-muted); }
+.match-actions { display: flex; gap: 6px; margin-top: 10px; }
+
+/* Rating badges */
+.rating-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.rating-btn { padding: 6px 14px; border-radius: 20px; border: 2px solid var(--border); background: white; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: 'Source Sans 3', sans-serif; }
+.rating-btn[data-val="1"].sel { background: var(--danger); border-color: var(--danger); color: white; }
+.rating-btn[data-val="2"].sel { background: var(--warn); border-color: var(--warn); color: white; }
+.rating-btn[data-val="3"].sel { background: var(--success); border-color: var(--success); color: white; }
+.rating-btn[data-val="4"].sel { background: var(--navy); border-color: var(--navy); color: white; }
+.rating-btn[data-val="5"].sel { background: var(--gold); border-color: var(--gold); color: var(--navy); }
+
+/* DOCUMENTS VIEW */
+.docs-view { padding: 32px; max-width: 900px; }
+.docs-view h2 { font-family: 'Playfair Display', serif; font-size: 1.6rem; color: var(--navy); margin-bottom: 6px; }
+.docs-view p.sub { color: var(--text-muted); margin-bottom: 24px; }
+.upload-zone {
+  border: 2px dashed var(--border); border-radius: 12px; padding: 32px; text-align: center;
+  background: white; cursor: pointer; transition: all 0.2s; margin-bottom: 24px;
+}
+.upload-zone:hover, .upload-zone.drag { border-color: var(--gold); background: var(--cream); }
+.upload-zone .icon { font-size: 2.5rem; margin-bottom: 8px; }
+.upload-zone p { color: var(--text-muted); font-size: 0.9rem; }
+.upload-zone input { display: none; }
+.doc-form { background: white; border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; display: none; }
+.doc-form.show { display: block; }
+.form-row { display: flex; gap: 12px; margin-bottom: 12px; }
+.form-group { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.form-group label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.form-group input, .form-group select { border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; font-family: 'Source Sans 3', sans-serif; font-size: 0.875rem; }
+.doc-list { display: flex; flex-direction: column; gap: 10px; }
+.doc-item { background: white; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow); }
+.doc-type-badge { padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; background: var(--cream2); color: var(--navy); }
+.doc-item-name { flex: 1; font-weight: 600; font-size: 0.9rem; color: var(--navy); }
+.doc-item-pages { font-size: 0.8rem; color: var(--text-muted); }
+
+/* SECTION BUILDER MODAL */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(26,39,68,0.5); z-index: 200; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: white; border-radius: 14px; width: 700px; max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
+.modal-header { padding: 24px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: white; z-index: 1; }
+.modal-header h3 { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: var(--navy); }
+.modal-close { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--text-muted); padding: 4px 8px; border-radius: 6px; }
+.modal-close:hover { background: var(--cream); }
+.modal-body { padding: 24px; }
+.modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; sticky: bottom 0; background: white; }
+.items-editor { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+.item-row { background: var(--cream); border-radius: 8px; padding: 14px; border: 1px solid var(--border); }
+.item-row-top { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+.item-row input, .item-row textarea { border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; font-family: 'Source Sans 3', sans-serif; font-size: 0.85rem; background: white; width: 100%; }
+.item-row textarea { min-height: 60px; resize: vertical; }
+
+/* BUTTONS */
+.btn { padding: 8px 18px; border-radius: 7px; border: none; font-family: 'Source Sans 3', sans-serif; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+.btn-primary { background: var(--navy); color: white; }
+.btn-primary:hover { background: var(--navy-light); }
+.btn-gold { background: var(--gold); color: var(--navy); }
+.btn-gold:hover { background: var(--gold-light); }
+.btn-outline { background: white; color: var(--navy); border: 1px solid var(--border); }
+.btn-outline:hover { border-color: var(--navy); }
+.btn-danger { background: var(--danger-light); color: var(--danger); border: 1px solid #f5c5c5; }
+.btn-danger:hover { background: var(--danger); color: white; }
+.btn-success { background: var(--success-light); color: var(--success); border: 1px solid #b8e0c8; }
+.btn-success:hover { background: var(--success); color: white; }
+.btn-sm { padding: 5px 10px; font-size: 0.78rem; }
+.btn-icon { padding: 5px 8px; font-size: 1rem; }
+
+/* Loader */
+.spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; }
+.spinner.dark { border-color: rgba(0,0,0,0.15); border-top-color: var(--navy); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.empty-state { text-align: center; padding: 48px 24px; color: var(--text-muted); }
+.empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+.empty-state p { font-size: 0.95rem; }
+
+.tag { display: inline-flex; align-items: center; gap: 4px; background: var(--cream2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 10px; font-size: 0.75rem; color: var(--text-muted); }
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--navy); color: white; padding: 12px 20px; border-radius: 8px; font-size: 0.875rem; z-index: 999; opacity: 0; transform: translateY(10px); transition: all 0.3s; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.success { background: var(--success); }
+.toast.error { background: var(--danger); }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <h1>GSQ Self-Reflection <span>Great Start to Quality · The Children's Center</span></h1>
+  <nav class="header-nav">
+    <button class="nav-btn active" onclick="showView('dashboard')">📊 Dashboard</button>
+    <button class="nav-btn" onclick="showView('sections')">📋 Self-Reflection</button>
+    <button class="nav-btn" onclick="showView('documents')">📁 Handbooks & Policies</button>
+  </nav>
+</header>
+
+<div class="app-body">
+  <!-- Sidebar: section list -->
+  <aside class="sidebar" id="sidebar" style="display:none">
+    <div class="sidebar-header"><h2>Sections</h2></div>
+    <button class="add-section-btn" onclick="openSectionModal()">+ Add Section</button>
+    <div class="section-list" id="sectionList"></div>
+  </aside>
+
+  <main class="main-content">
+    <!-- DASHBOARD VIEW -->
+    <div class="view active" id="view-dashboard">
+      <div class="dashboard">
+        <div class="dashboard-title">Self-Reflection Dashboard</div>
+        <p class="dashboard-sub">Track your progress across all GSQ sections.</p>
+        <div class="stats-row" id="statsRow"></div>
+        <div class="section-cards" id="sectionCards"></div>
+        <div class="empty-state" id="dashEmptyState" style="display:none">
+          <div class="icon">📋</div>
+          <p>No sections yet. Switch to <strong>Self-Reflection</strong> to add your first GSQ section.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTIONS / ITEMS VIEW -->
+    <div class="view" id="view-sections">
+      <div id="noSectionSelected" class="empty-state" style="padding-top:80px">
+        <div class="icon">👈</div>
+        <p>Select a section from the sidebar, or add a new one to get started.</p>
+      </div>
+      <div id="sectionEditorWrap" style="display:none" class="section-editor">
+        <div class="section-editor-header">
+          <div>
+            <h2 id="editorSectionName"></h2>
+            <p id="editorSectionDesc"></p>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-outline btn-sm" onclick="editCurrentSection()">✏️ Edit Section</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteCurrentSection()">🗑️ Delete</button>
+          </div>
+        </div>
+        <div id="itemsContainer"></div>
+      </div>
+    </div>
+
+    <!-- DOCUMENTS VIEW -->
+    <div class="view" id="view-documents">
+      <div class="docs-view">
+        <h2>Handbooks & Policy Documents</h2>
+        <p class="sub">Upload your staff handbook, family handbook, and policy documents. The AI will search these when auto-populating policy evidence for each GSQ item.</p>
+
+        <div class="upload-zone" id="uploadZone" onclick="document.getElementById('docFileInput').click()">
+          <div class="icon">📄</div>
+          <p><strong>Click to upload</strong> or drag & drop a PDF or Word document</p>
+          <p style="font-size:0.8rem; margin-top:4px">PDF and .docx files supported · Max 50MB</p>
+          <input type="file" id="docFileInput" accept=".pdf,.doc,.docx" onchange="handleDocFileSelect(event)">
+        </div>
+
+        <div class="doc-form" id="docForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Document Name</label>
+              <input type="text" id="docName" placeholder="e.g. Staff Handbook 2024–2025">
+            </div>
+            <div class="form-group">
+              <label>Document Type</label>
+              <select id="docType">
+                <option value="staff_handbook">Staff Handbook</option>
+                <option value="family_handbook">Family Handbook</option>
+                <option value="policy">Policy Document</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; justify-content:flex-end">
+            <button class="btn btn-outline" onclick="cancelDocUpload()">Cancel</button>
+            <button class="btn btn-primary" id="confirmUploadBtn" onclick="confirmDocUpload()">Upload & Index Document</button>
+          </div>
+        </div>
+
+        <div id="docList" class="doc-list"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- SECTION BUILDER MODAL -->
+<div class="modal-overlay" id="sectionModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">Add GSQ Section</h3>
+      <button class="modal-close" onclick="closeSectionModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group" style="margin-bottom:14px">
+        <label>Section Name</label>
+        <input type="text" id="mSectionName" placeholder="e.g. Curriculum and Learning Environment">
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label>Description (optional)</label>
+        <input type="text" id="mSectionDesc" placeholder="Brief description of this section">
+      </div>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px">
+        <label style="font-size:0.8rem; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em">Items / Questions</label>
+        <button class="btn btn-outline btn-sm" onclick="addItemRow()">+ Add Item</button>
+      </div>
+      <div class="items-editor" id="itemsEditor"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeSectionModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSection()">Save Section</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let sections = [];
+let documents = [];
+let currentSectionId = null;
+let currentSection = null;
+let editingSectionId = null;
+let pendingDocFile = null;
+let progress = {};
+// responses cache: { [sectionId]: { [itemId]: response } }
+let responsesCache = {};
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+async function init() {
+  await Promise.all([loadSections(), loadDocuments()]);
+  renderDashboard();
+}
+
+// ═══════════════════════════════════════════════════════
+// VIEWS
+// ═══════════════════════════════════════════════════════
+function showView(view) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + view).classList.add('active');
+  event.target.classList.add('active');
+  const sidebar = document.getElementById('sidebar');
+  sidebar.style.display = view === 'sections' ? 'flex' : 'none';
+  if (view === 'dashboard') renderDashboard();
+  if (view === 'documents') renderDocList();
+}
+
+// ═══════════════════════════════════════════════════════
+// SECTIONS
+// ═══════════════════════════════════════════════════════
+async function loadSections() {
+  const res = await fetch('/api/sections');
+  sections = await res.json();
+  const pres = await fetch('/api/progress');
+  const prog = await pres.json();
+  progress = {};
+  prog.forEach(p => { progress[p._id] = p; });
+  renderSidebar();
+}
+
+function renderSidebar() {
+  const list = document.getElementById('sectionList');
+  if (!sections.length) { list.innerHTML = '<div class="empty-state" style="padding:20px"><p>No sections yet</p></div>'; return; }
+  list.innerHTML = sections.map(s => {
+    const p = progress[s._id] || { completed: 0, totalItems: (s.items||[]).length };
+    const pct = p.totalItems ? Math.round(p.completed / p.totalItems * 100) : 0;
+    return `<div class="section-item ${s._id === currentSectionId ? 'active' : ''}" onclick="selectSection('${s._id}')">
+      <div class="section-item-name">${s.name}</div>
+      <div class="section-item-progress">
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+        <span class="progress-text">${p.completed}/${p.totalItems}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function selectSection(id) {
+  currentSectionId = id;
+  currentSection = sections.find(s => s._id === id);
+  renderSidebar();
+  await loadSectionEditor();
+}
+
+async function loadSectionEditor() {
+  if (!currentSection) return;
+  document.getElementById('noSectionSelected').style.display = 'none';
+  document.getElementById('sectionEditorWrap').style.display = 'block';
+  document.getElementById('editorSectionName').textContent = currentSection.name;
+  document.getElementById('editorSectionDesc').textContent = currentSection.description || '';
+
+  // Load responses
+  const res = await fetch('/api/responses/' + currentSectionId);
+  const responses = await res.json();
+  responsesCache[currentSectionId] = {};
+  responses.forEach(r => { responsesCache[currentSectionId][r.itemId] = r; });
+
+  renderItems();
+}
+
+function renderItems() {
+  const container = document.getElementById('itemsContainer');
+  const items = currentSection.items || [];
+  if (!items.length) { container.innerHTML = '<div class="empty-state"><div class="icon">📝</div><p>No items in this section yet. Edit the section to add items.</p></div>'; return; }
+
+  container.innerHTML = items.map((item, i) => {
+    const resp = (responsesCache[currentSectionId] || {})[item.id] || {};
+    const isDone = resp.narrative && resp.narrative.trim();
+    const policyCount = (resp.policyMatches || []).filter(m => m.status === 'accepted').length;
+    return `<div class="item-card" id="itemcard-${item.id}">
+      <div class="item-header" onclick="toggleItem('${item.id}', this)">
+        <div class="item-number ${isDone ? 'done' : ''}">${i+1}</div>
+        <div class="item-title-block">
+          <div class="item-title">${item.title}</div>
+          <div class="item-criteria">${item.criteria || ''}</div>
+          <div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap">
+            ${isDone ? '<span class="tag">✅ Response saved</span>' : ''}
+            ${policyCount ? `<span class="tag">📄 ${policyCount} policy ref${policyCount>1?'s':''}</span>` : ''}
+            ${resp.rating ? `<span class="tag">⭐ Self-rating: ${resp.rating}/5</span>` : ''}
+          </div>
+        </div>
+        <span class="item-expand-icon">▾</span>
+      </div>
+      <div class="item-body" id="itembody-${item.id}" style="display:none">
+        <div class="item-tabs">
+          <button class="item-tab active" onclick="switchTab('${item.id}','narrative',this)">📝 My Response</button>
+          <button class="item-tab" onclick="switchTab('${item.id}','policies',this)">📄 Policy Evidence</button>
+          <button class="item-tab" onclick="switchTab('${item.id}','evidence',this)">🗂️ File Evidence</button>
+        </div>
+        <div class="tab-pane active" id="tab-${item.id}-narrative">
+          ${renderNarrativeTab(item, resp)}
+        </div>
+        <div class="tab-pane" id="tab-${item.id}-policies">
+          ${renderPoliciesTab(item, resp)}
+        </div>
+        <div class="tab-pane" id="tab-${item.id}-evidence">
+          ${renderEvidenceTab(item)}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderNarrativeTab(item, resp) {
+  const labels = ['Not yet in place', 'Beginning', 'Developing', 'Established', 'Exemplary'];
+  const ratingBtns = [1,2,3,4,5].map(v =>
+    `<button class="rating-btn ${resp.rating==v?'sel':''}" data-val="${v}" onclick="setRating('${item.id}', ${v}, this)">${v} – ${labels[v-1]}</button>`
+  ).join('');
+  return `
+    <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:8px">Describe how your program demonstrates this item. Include specific examples, practices, and evidence.</p>
+    <textarea class="narrative" id="narrative-${item.id}" placeholder="Write your self-reflection response here...">${resp.narrative || ''}</textarea>
+    <div class="rating-row">${ratingBtns}</div>
+    <div class="save-row">
+      <button class="btn btn-outline btn-sm" onclick="clearNarrative('${item.id}')">Clear</button>
+      <button class="btn btn-primary btn-sm" id="saveBtn-${item.id}" onclick="saveNarrative('${item.id}')">💾 Save Response</button>
+    </div>`;
+}
+
+function renderPoliciesTab(item, resp) {
+  const matches = resp.policyMatches || [];
+  const accepted = matches.filter(m => m.status === 'accepted');
+  const pending = matches.filter(m => !m.status || m.status === 'pending');
+  const dismissed = matches.filter(m => m.status === 'dismissed');
+
+  const renderMatch = (m, i) => {
+    const typeLabel = {staff_handbook:'Staff Handbook', family_handbook:'Family Handbook', policy:'Policy Doc', other:'Document'}[m.docType] || 'Document';
+    return `<div class="match-card ${m.status === 'accepted' ? 'accepted' : m.status === 'dismissed' ? 'dismissed' : ''}" id="match-${item.id}-${i}">
+      <div class="match-header">
+        <span class="match-source">📖 ${m.docName} <span style="font-weight:400;opacity:0.7">(${typeLabel})</span></span>
+        <span class="match-page">Page ${m.page}</span>
+      </div>
+      <div class="match-excerpt">"${m.excerpt}"</div>
+      <div class="match-relevance">💡 ${m.relevance}</div>
+      ${m.status !== 'accepted' && m.status !== 'dismissed' ? `
+        <div class="match-actions">
+          <button class="btn btn-success btn-sm" onclick="acceptMatch('${item.id}', ${i})">✓ Use This</button>
+          <button class="btn btn-danger btn-sm" onclick="dismissMatch('${item.id}', ${i})">✕ Dismiss</button>
+        </div>` : m.status === 'accepted' ? `<div class="match-actions"><span class="tag" style="background:var(--success-light);color:var(--success)">✓ Accepted</span><button class="btn btn-outline btn-sm" onclick="dismissMatch('${item.id}', ${i})">Remove</button></div>` 
+        : `<div class="match-actions"><button class="btn btn-outline btn-sm" onclick="restoreMatch('${item.id}', ${i})">↩ Restore</button></div>`}
+    </div>`;
+  };
+
+  return `
+    <div class="policy-search-bar">
+      <input type="text" id="policyQuery-${item.id}" placeholder="Search handbooks & policies (e.g. 'supervision', 'curriculum planning')…" onkeydown="if(event.key==='Enter')searchPolicies('${item.id}')">
+      <button class="btn btn-gold btn-sm" onclick="searchPolicies('${item.id}')" id="policySearchBtn-${item.id}">🔍 Search Policies</button>
+      <button class="btn btn-primary btn-sm" onclick="autoSearchPolicies('${item.id}')" id="autoSearchBtn-${item.id}">✨ Auto-Find</button>
+    </div>
+    <div id="policyResults-${item.id}">
+      ${!matches.length ? '<div class="empty-state" style="padding:24px"><div class="icon">📄</div><p>No policy matches yet. Click <strong>Auto-Find</strong> to search your uploaded documents, or enter a search term above.</p></div>' : ''}
+      ${accepted.length ? `<p style="font-size:0.78rem;font-weight:600;color:var(--success);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Accepted (${accepted.length})</p>` + accepted.map((m,i) => renderMatch(m, matches.indexOf(m))).join('') : ''}
+      ${pending.length ? `<p style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin:12px 0 8px">Suggested — Review These</p>` + pending.map((m,i) => renderMatch(m, matches.indexOf(m))).join('') : ''}
+      ${dismissed.length ? `<details style="margin-top:12px"><summary style="font-size:0.78rem;color:var(--text-muted);cursor:pointer">Dismissed (${dismissed.length})</summary>${dismissed.map((m,i) => renderMatch(m, matches.indexOf(m))).join('')}</details>` : ''}
+    </div>`;
+}
+
+function renderEvidenceTab(item) {
+  return `<div id="evidenceList-${item.id}"><div class="empty-state" style="padding:20px"><div class="spinner dark"></div></div></div>
+    <div style="margin-top:12px; display:flex; gap:8px; align-items:center">
+      <input type="file" id="evFile-${item.id}" style="display:none" onchange="uploadEvidence('${item.id}', this)">
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('evFile-${item.id}').click()">📎 Attach File</button>
+      <span style="font-size:0.78rem; color:var(--text-muted)">Photos, documents, forms, etc.</span>
+    </div>`;
+}
+
+function toggleItem(itemId, headerEl) {
+  const body = document.getElementById('itembody-' + itemId);
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  headerEl.classList.toggle('open', !isOpen);
+  if (!isOpen) loadEvidence(itemId);
+}
+
+function switchTab(itemId, tab, btn) {
+  document.querySelectorAll(`[id^="tab-${itemId}-"]`).forEach(p => p.classList.remove('active'));
+  document.getElementById(`tab-${itemId}-${tab}`).classList.add('active');
+  btn.closest('.item-tabs').querySelectorAll('.item-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (tab === 'evidence') loadEvidence(itemId);
+}
+
+// ═══════════════════════════════════════════════════════
+// NARRATIVE
+// ═══════════════════════════════════════════════════════
+async function saveNarrative(itemId) {
+  const narrative = document.getElementById('narrative-' + itemId).value;
+  const resp = (responsesCache[currentSectionId] || {})[itemId] || {};
+  const btn = document.getElementById('saveBtn-' + itemId);
+  btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    await fetch('/api/responses', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ sectionId: currentSectionId, itemId, narrative, policyMatches: resp.policyMatches || [], rating: resp.rating, notes: resp.notes })
+    });
+    if (!responsesCache[currentSectionId]) responsesCache[currentSectionId] = {};
+    responsesCache[currentSectionId][itemId] = { ...resp, narrative };
+    toast('Response saved ✓', 'success');
+    btn.innerHTML = '💾 Save Response';
+    refreshItemHeader(itemId);
+    await loadSections(); // refresh progress
+  } catch (e) { btn.innerHTML = '💾 Save Response'; toast('Save failed', 'error'); }
+}
+
+function clearNarrative(itemId) {
+  document.getElementById('narrative-' + itemId).value = '';
+}
+
+function setRating(itemId, val, btn) {
+  btn.closest('.rating-row').querySelectorAll('.rating-btn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  const resp = (responsesCache[currentSectionId] || {})[itemId] || {};
+  if (!responsesCache[currentSectionId]) responsesCache[currentSectionId] = {};
+  responsesCache[currentSectionId][itemId] = { ...resp, rating: val };
+  // Auto-save rating
+  const narrative = document.getElementById('narrative-' + itemId)?.value || resp.narrative || '';
+  fetch('/api/responses', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ sectionId: currentSectionId, itemId, narrative, policyMatches: resp.policyMatches || [], rating: val }) });
+}
+
+// ═══════════════════════════════════════════════════════
+// POLICY EVIDENCE
+// ═══════════════════════════════════════════════════════
+async function autoSearchPolicies(itemId) {
+  const item = currentSection.items.find(i => i.id === itemId);
+  await runPolicySearch(itemId, '', item);
+}
+
+async function searchPolicies(itemId) {
+  const q = document.getElementById('policyQuery-' + itemId).value.trim();
+  const item = currentSection.items.find(i => i.id === itemId);
+  await runPolicySearch(itemId, q, item);
+}
+
+async function runPolicySearch(itemId, searchQuery, item) {
+  const btn = document.getElementById(searchQuery ? 'policySearchBtn-' + itemId : 'autoSearchBtn-' + itemId);
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner"></span> Searching…';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/ai/search-policies', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ itemText: item.title, criteria: item.criteria, searchQuery })
+    });
+    const data = await res.json();
+
+    const resp = (responsesCache[currentSectionId] || {})[itemId] || {};
+    const existing = resp.policyMatches || [];
+
+    // Merge: add new ones that aren't duplicates
+    const newMatches = (data.matches || []).map(m => ({ ...m, status: 'pending' }));
+    const merged = [...existing];
+    newMatches.forEach(nm => {
+      const dup = merged.find(e => e.docName === nm.docName && e.page === nm.page && e.excerpt === nm.excerpt);
+      if (!dup) merged.push(nm);
+    });
+
+    if (!responsesCache[currentSectionId]) responsesCache[currentSectionId] = {};
+    responsesCache[currentSectionId][itemId] = { ...resp, policyMatches: merged };
+
+    // Save to DB
+    const narrative = document.getElementById('narrative-' + itemId)?.value || resp.narrative || '';
+    await fetch('/api/responses', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ sectionId: currentSectionId, itemId, narrative, policyMatches: merged, rating: resp.rating }) });
+
+    refreshPoliciesTab(itemId);
+    toast(`Found ${newMatches.length} policy match${newMatches.length!==1?'es':''}`, newMatches.length ? 'success' : '');
+  } catch (e) { toast('Search failed: ' + e.message, 'error'); }
+  btn.innerHTML = orig; btn.disabled = false;
+}
+
+async function acceptMatch(itemId, matchIndex) {
+  await updateMatchStatus(itemId, matchIndex, 'accepted');
+}
+async function dismissMatch(itemId, matchIndex) {
+  await updateMatchStatus(itemId, matchIndex, 'dismissed');
+}
+async function restoreMatch(itemId, matchIndex) {
+  await updateMatchStatus(itemId, matchIndex, 'pending');
+}
+
+async function updateMatchStatus(itemId, matchIndex, status) {
+  const resp = (responsesCache[currentSectionId] || {})[itemId] || {};
+  const matches = [...(resp.policyMatches || [])];
+  if (matches[matchIndex]) matches[matchIndex] = { ...matches[matchIndex], status };
+  if (!responsesCache[currentSectionId]) responsesCache[currentSectionId] = {};
+  responsesCache[currentSectionId][itemId] = { ...resp, policyMatches: matches };
+  const narrative = document.getElementById('narrative-' + itemId)?.value || resp.narrative || '';
+  await fetch('/api/responses', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ sectionId: currentSectionId, itemId, narrative, policyMatches: matches, rating: resp.rating }) });
+  refreshPoliciesTab(itemId);
+  refreshItemHeader(itemId);
+}
+
+function refreshPoliciesTab(itemId) {
+  const item = currentSection.items.find(i => i.id === itemId);
+  const resp = (responsesCache[currentSectionId] || {})[itemId] || {};
+  document.getElementById('tab-' + itemId + '-policies').innerHTML = renderPoliciesTab(item, resp);
+}
+
+function refreshItemHeader(itemId) {
+  const idx = currentSection.items.findIndex(i => i.id === itemId);
+  const item = currentSection.items[idx];
+  const resp = (responsesCache[currentSectionId] || {})[itemId] || {};
+  const isDone = resp.narrative && resp.narrative.trim();
+  const policyCount = (resp.policyMatches || []).filter(m => m.status === 'accepted').length;
+  const numEl = document.querySelector(`#itemcard-${itemId} .item-number`);
+  if (numEl) numEl.className = `item-number ${isDone ? 'done' : ''}`;
+  const tagsEl = document.querySelector(`#itemcard-${itemId} .item-title-block div:last-child`);
+  if (tagsEl) tagsEl.innerHTML = `
+    ${isDone ? '<span class="tag">✅ Response saved</span>' : ''}
+    ${policyCount ? `<span class="tag">📄 ${policyCount} policy ref${policyCount>1?'s':''}</span>` : ''}
+    ${resp.rating ? `<span class="tag">⭐ Self-rating: ${resp.rating}/5</span>` : ''}`;
+}
+
+// ═══════════════════════════════════════════════════════
+// FILE EVIDENCE
+// ═══════════════════════════════════════════════════════
+async function loadEvidence(itemId) {
+  const container = document.getElementById('evidenceList-' + itemId);
+  if (!container) return;
+  const res = await fetch(`/api/evidence/${currentSectionId}/${itemId}`);
+  const evidence = await res.json();
+  if (!evidence.length) { container.innerHTML = '<p style="font-size:0.85rem;color:var(--text-muted)">No files attached yet.</p>'; return; }
+  container.innerHTML = '<div class="evidence-list">' + evidence.map(ev => {
+    const icon = ev.mimetype?.includes('image') ? '🖼️' : ev.mimetype?.includes('pdf') ? '📕' : '📄';
+    return `<div class="evidence-item">
+      <span class="evidence-icon">${icon}</span>
+      <span class="evidence-name">${ev.label || ev.originalName}</span>
+      <a class="evidence-link" href="/uploads/${ev.filename}" target="_blank">View</a>
+      <button class="btn btn-danger btn-icon btn-sm" onclick="deleteEvidence('${ev._id}', '${itemId}')">🗑️</button>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+async function uploadEvidence(itemId, input) {
+  const file = input.files[0]; if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('sectionId', currentSectionId);
+  fd.append('itemId', itemId);
+  fd.append('label', file.name);
+  const res = await fetch('/api/evidence/upload', { method: 'POST', body: fd });
+  if (res.ok) { toast('File attached ✓', 'success'); loadEvidence(itemId); }
+  else toast('Upload failed', 'error');
+  input.value = '';
+}
+
+async function deleteEvidence(id, itemId) {
+  if (!confirm('Remove this file?')) return;
+  await fetch('/api/evidence/' + id, { method: 'DELETE' });
+  loadEvidence(itemId);
+}
+
+// ═══════════════════════════════════════════════════════
+// SECTION MODAL
+// ═══════════════════════════════════════════════════════
+function openSectionModal(section) {
+  editingSectionId = section ? section._id : null;
+  document.getElementById('modalTitle').textContent = section ? 'Edit Section' : 'Add GSQ Section';
+  document.getElementById('mSectionName').value = section ? section.name : '';
+  document.getElementById('mSectionDesc').value = section ? (section.description || '') : '';
+  const editor = document.getElementById('itemsEditor');
+  editor.innerHTML = '';
+  if (section && section.items) section.items.forEach(item => addItemRow(item));
+  document.getElementById('sectionModal').classList.add('open');
+}
+
+function closeSectionModal() {
+  document.getElementById('sectionModal').classList.remove('open');
+  editingSectionId = null;
+}
+
+function addItemRow(item) {
+  const id = item ? item.id : 'item_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+  const div = document.createElement('div');
+  div.className = 'item-row';
+  div.dataset.itemId = id;
+  div.innerHTML = `
+    <div class="item-row-top">
+      <input type="text" class="item-title-input" placeholder="Item / question title" value="${item ? item.title.replace(/"/g,'&quot;') : ''}">
+      <button class="btn btn-danger btn-icon" onclick="this.closest('.item-row').remove()" style="flex-shrink:0">🗑️</button>
+    </div>
+    <textarea class="item-criteria-input" placeholder="What evaluators look for / criteria (optional)">${item ? (item.criteria || '') : ''}</textarea>`;
+  document.getElementById('itemsEditor').appendChild(div);
+}
+
+async function saveSection() {
+  const name = document.getElementById('mSectionName').value.trim();
+  if (!name) { toast('Section name required', 'error'); return; }
+  const rows = document.querySelectorAll('#itemsEditor .item-row');
+  const items = Array.from(rows).map(row => ({
+    id: row.dataset.itemId,
+    title: row.querySelector('.item-title-input').value.trim(),
+    criteria: row.querySelector('.item-criteria-input').value.trim()
+  })).filter(i => i.title);
+
+  const payload = { name, description: document.getElementById('mSectionDesc').value.trim(), items };
+  if (editingSectionId) payload._id = editingSectionId;
+
+  await fetch('/api/sections', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+  closeSectionModal();
+  await loadSections();
+  if (editingSectionId && currentSectionId === editingSectionId) {
+    currentSection = sections.find(s => s._id === editingSectionId);
+    loadSectionEditor();
+  }
+  toast('Section saved ✓', 'success');
+}
+
+function editCurrentSection() {
+  openSectionModal(currentSection);
+}
+
+async function deleteCurrentSection() {
+  if (!confirm('Delete this section and all its responses?')) return;
+  await fetch('/api/sections/' + currentSectionId, { method: 'DELETE' });
+  currentSectionId = null; currentSection = null;
+  document.getElementById('noSectionSelected').style.display = 'block';
+  document.getElementById('sectionEditorWrap').style.display = 'none';
+  await loadSections();
+  toast('Section deleted');
+}
+
+// ═══════════════════════════════════════════════════════
+// DOCUMENTS
+// ═══════════════════════════════════════════════════════
+async function loadDocuments() {
+  const res = await fetch('/api/documents');
+  documents = await res.json();
+}
+
+function renderDocList() {
+  const container = document.getElementById('docList');
+  if (!documents.length) { container.innerHTML = '<div class="empty-state"><div class="icon">📚</div><p>No documents uploaded yet.</p></div>'; return; }
+  const typeLabel = {staff_handbook:'Staff Handbook', family_handbook:'Family Handbook', policy:'Policy Doc', other:'Other'};
+  container.innerHTML = documents.map(d => `
+    <div class="doc-item">
+      <span style="font-size:1.5rem">${d.mimetype?.includes('pdf') ? '📕' : '📘'}</span>
+      <div style="flex:1">
+        <div class="doc-item-name">${d.docName}</div>
+        <div class="doc-item-pages">${d.pageCount || 0} pages indexed · ${new Date(d.createdAt).toLocaleDateString()}</div>
+      </div>
+      <span class="doc-type-badge">${typeLabel[d.docType] || 'Document'}</span>
+      <button class="btn btn-danger btn-sm" onclick="deleteDocument('${d._id}')">🗑️ Remove</button>
+    </div>`).join('');
+}
+
+function handleDocFileSelect(event) {
+  const file = event.target.files[0]; if (!file) return;
+  pendingDocFile = file;
+  document.getElementById('docName').value = file.name.replace(/\.[^/.]+$/, '');
+  document.getElementById('docForm').classList.add('show');
+}
+
+async function confirmDocUpload() {
+  if (!pendingDocFile) return;
+  const btn = document.getElementById('confirmUploadBtn');
+  btn.innerHTML = '<span class="spinner"></span> Indexing…';
+  btn.disabled = true;
+  const fd = new FormData();
+  fd.append('file', pendingDocFile);
+  fd.append('docName', document.getElementById('docName').value.trim() || pendingDocFile.name);
+  fd.append('docType', document.getElementById('docType').value);
+  try {
+    const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    toast(`Document indexed: ${data.pageCount} pages ✓`, 'success');
+    cancelDocUpload();
+    await loadDocuments();
+    renderDocList();
+  } catch (e) { toast('Upload failed: ' + e.message, 'error'); }
+  btn.innerHTML = 'Upload & Index Document'; btn.disabled = false;
+}
+
+function cancelDocUpload() {
+  pendingDocFile = null;
+  document.getElementById('docForm').classList.remove('show');
+  document.getElementById('docFileInput').value = '';
+}
+
+async function deleteDocument(id) {
+  if (!confirm('Remove this document? Policy matches that referenced it will still be saved.')) return;
+  await fetch('/api/documents/' + id, { method: 'DELETE' });
+  await loadDocuments();
+  renderDocList();
+  toast('Document removed');
+}
+
+// Drag-drop on upload zone
+const uploadZone = document.getElementById('uploadZone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) { pendingDocFile = file; document.getElementById('docName').value = file.name.replace(/\.[^/.]+$/, ''); document.getElementById('docForm').classList.add('show'); }
+});
+
+// ═══════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════
+async function renderDashboard() {
+  const pres = await fetch('/api/progress');
+  const prog = await pres.json();
+  const totalSections = prog.length;
+  const totalItems = prog.reduce((a, s) => a + s.totalItems, 0);
+  const totalDone = prog.reduce((a, s) => a + s.completed, 0);
+  const overallPct = totalItems ? Math.round(totalDone / totalItems * 100) : 0;
+
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-card"><div class="val">${totalSections}</div><div class="lbl">Sections</div></div>
+    <div class="stat-card"><div class="val">${totalItems}</div><div class="lbl">Total Items</div></div>
+    <div class="stat-card"><div class="val">${totalDone}</div><div class="lbl">Responses Written</div></div>
+    <div class="stat-card"><div class="val">${overallPct}%</div><div class="lbl">Overall Complete</div></div>
+    <div class="stat-card"><div class="val">${documents.length}</div><div class="lbl">Docs Indexed</div></div>`;
+
+  if (!prog.length) {
+    document.getElementById('dashEmptyState').style.display = 'block';
+    document.getElementById('sectionCards').innerHTML = '';
+    return;
+  }
+  document.getElementById('dashEmptyState').style.display = 'none';
+  document.getElementById('sectionCards').innerHTML = prog.map(s => {
+    const pct = s.totalItems ? Math.round(s.completed / s.totalItems * 100) : 0;
+    return `<div class="section-card" onclick="goToSection('${s._id}')">
+      <h3>${s.name}</h3>
+      <div class="big-bar"><div class="big-fill" style="width:${pct}%"></div></div>
+      <div class="pct">${s.completed} of ${s.totalItems} items complete · ${pct}%</div>
+    </div>`;
+  }).join('');
+}
+
+function goToSection(id) {
+  // Switch to sections view, select section
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-sections').classList.add('active');
+  document.querySelectorAll('.nav-btn')[1].classList.add('active');
+  document.getElementById('sidebar').style.display = 'flex';
+  selectSection(id);
+}
+
+// ═══════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ═══════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
