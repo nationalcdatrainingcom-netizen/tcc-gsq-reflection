@@ -497,7 +497,7 @@ async function selectSection(id) {
 async function renderSectionEditor() {
   const sec = framework.find(s => s.id === currentSectionId);
   if (!sec) return;
-  const locId = currentLocId || (me.role !== 'admin' ? me.locationId : null);
+  const locId = currentLocId || me.locationId || null;
   const url = `/api/responses/${sec.id}${locId ? '?locationId=' + locId : ''}`;
   const r = await fetch(url);
   const responses = await r.json();
@@ -683,7 +683,7 @@ async function runPolicySearch(itemId, searchQuery) {
 
   try {
     const r = await fetch('/api/ai/search-policies', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ itemText: item.title + ': ' + item.fullText, criteria: item.fullText, checklistItems: item.checklistItems, searchQuery, locationId: locId }) });
+      body: JSON.stringify({ itemText: item.title + ': ' + item.fullText, criteria: item.fullText, checklistItems: item.checklistItems, searchQuery, locationId: locId || currentLocId || null }) });
     const data = await r.json();
     if (data.message) { toast(data.message); btn.innerHTML = orig; btn.disabled = false; return; }
 
