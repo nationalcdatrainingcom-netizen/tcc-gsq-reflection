@@ -877,6 +877,8 @@ async function renderDocsView() {
           <div class="doc-meta">${typeLabel[d.docType] || 'Document'} · ${d.pageCount || 0} pages indexed · ${new Date(d.createdAt).toLocaleDateString()}</div>
         </div>
         ${scopeLabel}
+        <span style="font-size:.75rem;padding:3px 8px;border-radius:20px;background:${(d.pageCount||0) > 0 ? 'var(--green-bg)' : 'var(--red-bg)'};color:${(d.pageCount||0) > 0 ? 'var(--green)' : 'var(--red)'};">${(d.pageCount||0) > 0 ? d.pageCount + ' pages ✓' : '⚠️ 0 pages — needs re-index'}</span>
+        <button class="btn btn-outline btn-sm" onclick="reindexDoc('${d._id}','${d.docName.replace(/'/g,"\'")}',event)" title="Re-process document text extraction">🔄 Re-index</button>
         <button class="btn btn-red btn-sm" onclick="deleteDoc('${d._id}')">🗑️</button>
       </div>`;
     });
@@ -938,6 +940,19 @@ async function confirmDoc() {
   } catch(e) { toast('Upload failed: ' + e.message, 'err'); }
   btn.innerHTML = '📤 Upload & Index Document'; btn.disabled = false;
 }
+async function reindexDoc(id, name, event) {
+  const btn = event.target;
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<span class="spin dark"></span>'; btn.disabled = true;
+  try {
+    const r = await fetch(`/api/documents/${id}/reindex`, { method: 'POST' });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    toast(`Re-indexed "${name}": ${d.pageCount} pages found ✓`, 'ok');
+    renderDocsView();
+  } catch(e) { toast('Re-index failed: ' + e.message, 'err'); btn.innerHTML = orig; btn.disabled = false; }
+}
+
 async function deleteDoc(id) {
   if (!confirm('Remove this document? This cannot be undone.')) return;
   await fetch('/api/documents/' + id, { method:'DELETE' });
