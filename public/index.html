@@ -3,964 +3,1090 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GSQ Self-Reflection Tool — The Children's Center</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
+<title>GSQ Self-Reflection — The Children's Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+3:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <style>
 :root {
-  --navy: #1a2744;
-  --navy-light: #253561;
-  --gold: #c8973a;
-  --gold-light: #e8b85a;
-  --cream: #faf8f4;
-  --cream2: #f2ede4;
-  --text: #2c2c2c;
-  --text-muted: #6b6b6b;
-  --border: #ddd6c8;
-  --success: #2d7a4a;
-  --success-light: #e8f5ed;
-  --warn: #a05c1a;
-  --warn-light: #fef3e2;
-  --danger: #b03030;
-  --danger-light: #fde8e8;
+  --navy: #1a2744; --navy-light: #253561; --navy-muted: #3d5080;
+  --gold: #c8973a; --gold-light: #e8b85a; --gold-pale: #fdf6e8;
+  --cream: #faf8f4; --cream2: #f2ede4; --border: #ddd6c8;
+  --text: #2c2c2c; --muted: #6b7280;
+  --green: #2d7a4a; --green-bg: #e8f5ed; --green-border: #b8e0c8;
+  --red: #b03030; --red-bg: #fde8e8; --red-border: #f5c5c5;
+  --amber: #a05c1a; --amber-bg: #fef3e2;
   --white: #ffffff;
-  --shadow: 0 2px 12px rgba(26,39,68,0.10);
-  --shadow-lg: 0 8px 32px rgba(26,39,68,0.15);
-  --radius: 10px;
+  --shadow: 0 2px 12px rgba(26,39,68,.10); --shadow-lg: 0 8px 32px rgba(26,39,68,.16);
+  --r: 10px; --r-sm: 6px;
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Source Sans 3', sans-serif; background: var(--cream); color: var(--text); min-height: 100vh; }
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Source Sans 3',sans-serif;background:var(--cream);color:var(--text);min-height:100vh}
 
-/* HEADER */
-.app-header {
-  background: var(--navy);
-  padding: 0 32px;
-  display: flex; align-items: center; justify-content: space-between;
-  height: 64px;
-  position: sticky; top: 0; z-index: 100;
-  box-shadow: 0 2px 16px rgba(0,0,0,0.25);
-}
-.app-header h1 { font-family: 'Playfair Display', serif; color: var(--gold); font-size: 1.3rem; font-weight: 600; }
-.app-header h1 span { color: rgba(255,255,255,0.6); font-family: 'Source Sans 3', sans-serif; font-weight: 300; font-size: 0.85rem; display: block; margin-top: -2px; }
-.header-nav { display: flex; gap: 4px; }
-.nav-btn { background: transparent; border: none; color: rgba(255,255,255,0.65); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-family: 'Source Sans 3', sans-serif; font-size: 0.875rem; font-weight: 500; transition: all 0.2s; }
-.nav-btn:hover { background: rgba(255,255,255,0.1); color: white; }
-.nav-btn.active { background: var(--gold); color: var(--navy); font-weight: 600; }
+/* ── LOGIN ── */
+#loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--navy);background-image:radial-gradient(ellipse at 30% 30%,#253561 0%,transparent 60%),radial-gradient(ellipse at 70% 70%,#0f1a30 0%,transparent 60%)}
+.login-card{background:white;border-radius:16px;padding:48px 44px;width:420px;max-width:95vw;box-shadow:var(--shadow-lg)}
+.login-logo{text-align:center;margin-bottom:32px}
+.login-logo h1{font-family:'Playfair Display',serif;font-size:1.6rem;color:var(--navy)}
+.login-logo p{color:var(--muted);font-size:.875rem;margin-top:4px}
+.login-logo .star{font-size:2rem;margin-bottom:8px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.field input{width:100%;border:1.5px solid var(--border);border-radius:var(--r-sm);padding:10px 14px;font-family:'Source Sans 3',sans-serif;font-size:.95rem;transition:border .2s}
+.field input:focus{outline:none;border-color:var(--gold)}
+.login-btn{width:100%;background:var(--navy);color:white;border:none;border-radius:var(--r-sm);padding:12px;font-family:'Source Sans 3',sans-serif;font-size:1rem;font-weight:600;cursor:pointer;transition:background .2s;margin-top:4px}
+.login-btn:hover{background:var(--navy-light)}
+.login-error{color:var(--red);font-size:.85rem;margin-top:10px;text-align:center;min-height:20px}
 
-/* LAYOUT */
-.app-body { display: flex; height: calc(100vh - 64px); }
-.sidebar {
-  width: 280px; min-width: 280px; background: var(--white); border-right: 1px solid var(--border);
-  overflow-y: auto; display: flex; flex-direction: column;
-}
-.main-content { flex: 1; overflow-y: auto; }
+/* ── APP SHELL ── */
+#app{display:none;flex-direction:column;height:100vh}
+.topbar{background:var(--navy);height:58px;display:flex;align-items:center;padding:0 20px;gap:16px;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.25)}
+.topbar-logo{font-family:'Playfair Display',serif;color:var(--gold);font-size:1.1rem;font-weight:600;white-space:nowrap}
+.topbar-logo span{color:rgba(255,255,255,.5);font-family:'Source Sans 3',sans-serif;font-weight:300;font-size:.75rem;display:block;margin-top:-2px}
+.loc-switcher{display:flex;gap:4px;margin-left:8px}
+.loc-btn{padding:5px 12px;border-radius:20px;border:1.5px solid rgba(255,255,255,.25);background:transparent;color:rgba(255,255,255,.7);font-size:.78rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:'Source Sans 3',sans-serif;white-space:nowrap}
+.loc-btn:hover{border-color:var(--gold);color:var(--gold)}
+.loc-btn.active{background:var(--gold);border-color:var(--gold);color:var(--navy)}
+.topbar-spacer{flex:1}
+.nav-tabs{display:flex;gap:2px}
+.nav-tab{background:transparent;border:none;color:rgba(255,255,255,.65);padding:7px 14px;border-radius:var(--r-sm);cursor:pointer;font-family:'Source Sans 3',sans-serif;font-size:.83rem;font-weight:500;transition:all .2s;white-space:nowrap}
+.nav-tab:hover{background:rgba(255,255,255,.1);color:white}
+.nav-tab.active{background:var(--gold);color:var(--navy);font-weight:700}
+.user-pill{display:flex;align-items:center;gap:8px;padding:5px 12px;background:rgba(255,255,255,.08);border-radius:20px;margin-left:8px;font-size:.8rem;color:rgba(255,255,255,.8)}
+.user-pill button{background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:.8rem;padding:0 0 0 4px}
+.user-pill button:hover{color:white}
 
-/* SIDEBAR */
-.sidebar-header { padding: 20px 20px 12px; border-bottom: 1px solid var(--border); }
-.sidebar-header h2 { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted); }
-.add-section-btn {
-  margin: 12px 16px 0; width: calc(100% - 32px);
-  background: var(--navy); color: white; border: none; border-radius: 8px;
-  padding: 10px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: background 0.2s;
-  font-family: 'Source Sans 3', sans-serif;
-}
-.add-section-btn:hover { background: var(--navy-light); }
-.section-list { padding: 8px 0; flex: 1; }
-.section-item {
-  padding: 10px 20px; cursor: pointer; border-left: 3px solid transparent;
-  transition: all 0.15s; display: flex; flex-direction: column; gap: 4px;
-}
-.section-item:hover { background: var(--cream); }
-.section-item.active { background: var(--cream2); border-left-color: var(--gold); }
-.section-item-name { font-weight: 600; font-size: 0.9rem; color: var(--navy); }
-.section-item-progress { display: flex; align-items: center; gap: 8px; }
-.progress-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
-.progress-fill { height: 100%; background: var(--gold); border-radius: 2px; transition: width 0.4s; }
-.progress-text { font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; }
+/* ── LAYOUT ── */
+.app-body{display:flex;flex:1;min-height:0}
+.sidebar{width:265px;min-width:265px;background:white;border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column}
+.main{flex:1;overflow-y:auto}
 
-/* VIEWS */
-.view { display: none; }
-.view.active { display: block; }
+/* ── SIDEBAR ── */
+.sidebar-section{padding:10px 0;border-bottom:1px solid var(--border)}
+.sidebar-section-title{padding:8px 18px 4px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+.sidebar-item{padding:9px 18px;cursor:pointer;border-left:3px solid transparent;display:flex;flex-direction:column;gap:3px;transition:all .15s}
+.sidebar-item:hover{background:var(--cream)}
+.sidebar-item.active{background:var(--cream2);border-left-color:var(--gold)}
+.sidebar-item-name{font-weight:600;font-size:.875rem;color:var(--navy);line-height:1.3}
+.sidebar-prog{display:flex;align-items:center;gap:7px}
+.prog-bar{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;background:var(--gold);border-radius:2px;transition:width .4s}
+.prog-text{font-size:.72rem;color:var(--muted);white-space:nowrap}
 
-/* DASHBOARD */
-.dashboard { padding: 32px; max-width: 1000px; }
-.dashboard-title { font-family: 'Playfair Display', serif; font-size: 2rem; color: var(--navy); margin-bottom: 6px; }
-.dashboard-sub { color: var(--text-muted); font-size: 1rem; margin-bottom: 32px; }
-.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 32px; }
-.stat-card { background: white; border-radius: var(--radius); padding: 20px; border: 1px solid var(--border); box-shadow: var(--shadow); }
-.stat-card .val { font-family: 'Playfair Display', serif; font-size: 2.2rem; color: var(--navy); line-height: 1; }
-.stat-card .lbl { font-size: 0.8rem; color: var(--text-muted); margin-top: 6px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
-.section-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
-.section-card { background: white; border-radius: var(--radius); padding: 20px; border: 1px solid var(--border); box-shadow: var(--shadow); cursor: pointer; transition: all 0.2s; }
-.section-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); border-color: var(--gold); }
-.section-card h3 { font-size: 1rem; font-weight: 600; color: var(--navy); margin-bottom: 8px; }
-.section-card .big-bar { height: 8px; background: var(--cream2); border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
-.section-card .big-fill { height: 100%; background: var(--gold); border-radius: 4px; transition: width 0.5s; }
-.section-card .pct { font-size: 0.85rem; color: var(--text-muted); }
+/* ── VIEWS ── */
+.view{display:none}.view.active{display:block}
 
-/* SECTION EDITOR */
-.section-editor { padding: 32px; }
-.section-editor-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; }
-.section-editor-header h2 { font-family: 'Playfair Display', serif; font-size: 1.6rem; color: var(--navy); }
-.section-editor-header p { color: var(--text-muted); font-size: 0.9rem; margin-top: 4px; }
-.header-actions { display: flex; gap: 8px; }
+/* ── DASHBOARD ── */
+.dash{padding:28px 32px;max-width:1040px}
+.dash h2{font-family:'Playfair Display',serif;font-size:1.8rem;color:var(--navy);margin-bottom:4px}
+.dash-sub{color:var(--muted);margin-bottom:28px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:28px}
+.stat{background:white;border:1px solid var(--border);border-radius:var(--r);padding:18px;box-shadow:var(--shadow)}
+.stat .val{font-family:'Playfair Display',serif;font-size:2rem;color:var(--navy);line-height:1}
+.stat .lbl{font-size:.75rem;color:var(--muted);margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.section-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+.sec-card{background:white;border:1px solid var(--border);border-radius:var(--r);padding:18px;box-shadow:var(--shadow);cursor:pointer;transition:all .2s}
+.sec-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px);border-color:var(--gold)}
+.sec-card h3{font-size:.95rem;font-weight:700;color:var(--navy);margin-bottom:10px}
+.sec-card .bar{height:7px;background:var(--cream2);border-radius:4px;overflow:hidden;margin-bottom:7px}
+.sec-card .bar-fill{height:100%;background:var(--gold);border-radius:4px;transition:width .5s}
+.sec-card .pct{font-size:.82rem;color:var(--muted)}
 
-.item-card {
-  background: white; border: 1px solid var(--border); border-radius: var(--radius);
-  margin-bottom: 20px; box-shadow: var(--shadow); overflow: hidden;
-}
-.item-header {
-  padding: 16px 20px; display: flex; align-items: flex-start; gap: 12px;
-  cursor: pointer; transition: background 0.15s;
-}
-.item-header:hover { background: var(--cream); }
-.item-number { background: var(--navy); color: white; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 600; flex-shrink: 0; margin-top: 2px; }
-.item-number.done { background: var(--success); }
-.item-title-block { flex: 1; }
-.item-title { font-weight: 600; font-size: 0.95rem; color: var(--navy); }
-.item-criteria { font-size: 0.82rem; color: var(--text-muted); margin-top: 3px; line-height: 1.5; }
-.item-expand-icon { color: var(--text-muted); font-size: 1.1rem; transition: transform 0.2s; }
-.item-header.open .item-expand-icon { transform: rotate(180deg); }
+/* ── SECTION EDITOR ── */
+.sec-editor{padding:28px 32px}
+.sec-editor-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;gap:12px}
+.sec-editor-hdr h2{font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--navy)}
+.sec-editor-hdr p{color:var(--muted);font-size:.875rem;margin-top:3px;max-width:680px;line-height:1.5}
 
-.item-body { padding: 0 20px 20px; border-top: 1px solid var(--border); }
-.item-tabs { display: flex; gap: 0; margin: 0 -20px 20px; border-bottom: 1px solid var(--border); padding: 0 20px; }
-.item-tab { padding: 10px 16px; font-size: 0.85rem; font-weight: 500; cursor: pointer; border-bottom: 2px solid transparent; color: var(--text-muted); transition: all 0.15s; background: none; border-top: none; border-left: none; border-right: none; font-family: 'Source Sans 3', sans-serif; }
-.item-tab:hover { color: var(--navy); }
-.item-tab.active { color: var(--navy); border-bottom-color: var(--gold); font-weight: 600; }
+/* ── ITEM CARD ── */
+.item-card{background:white;border:1px solid var(--border);border-radius:var(--r);margin-bottom:14px;box-shadow:var(--shadow);overflow:hidden}
+.item-hdr{padding:15px 18px;display:flex;align-items:flex-start;gap:12px;cursor:pointer;transition:background .15s}
+.item-hdr:hover{background:var(--cream)}
+.item-num{background:var(--navy);color:white;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex-shrink:0;margin-top:1px;transition:background .2s}
+.item-num.done{background:var(--green)}
+.item-num.partial{background:var(--amber)}
+.item-info{flex:1}
+.item-title{font-weight:700;font-size:.9rem;color:var(--navy);line-height:1.35}
+.item-sub{font-size:.78rem;color:var(--muted);margin-top:3px;line-height:1.5}
+.item-badges{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.badge{display:inline-flex;align-items:center;gap:3px;background:var(--cream2);border:1px solid var(--border);border-radius:20px;padding:2px 8px;font-size:.72rem;color:var(--muted)}
+.badge.green{background:var(--green-bg);border-color:var(--green-border);color:var(--green)}
+.badge.gold{background:var(--gold-pale);border-color:#e8c87a;color:var(--amber)}
+.expand-icon{color:var(--muted);font-size:1rem;transition:transform .2s;flex-shrink:0;margin-top:4px}
+.item-hdr.open .expand-icon{transform:rotate(180deg)}
 
-.tab-pane { display: none; }
-.tab-pane.active { display: block; }
+.item-body{border-top:1px solid var(--border);display:none}
+.item-tabs{display:flex;border-bottom:1px solid var(--border);padding:0 18px;gap:0}
+.itab{background:none;border:none;border-bottom:2px solid transparent;padding:10px 14px;font-size:.82rem;font-weight:500;cursor:pointer;color:var(--muted);transition:all .15s;font-family:'Source Sans 3',sans-serif}
+.itab:hover{color:var(--navy)}
+.itab.active{color:var(--navy);border-bottom-color:var(--gold);font-weight:700}
+.tab-body{display:none;padding:18px}.tab-body.active{display:block}
 
-/* Narrative textarea */
-.narrative-wrap { position: relative; }
-textarea.narrative {
-  width: 100%; min-height: 120px; border: 1px solid var(--border); border-radius: 8px;
-  padding: 12px 14px; font-family: 'Source Sans 3', sans-serif; font-size: 0.9rem;
-  line-height: 1.6; color: var(--text); background: var(--cream); resize: vertical;
-  transition: border 0.2s;
-}
-textarea.narrative:focus { outline: none; border-color: var(--gold); background: white; }
-.save-row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+/* ── NARRATIVE ── */
+.criteria-box{background:var(--gold-pale);border:1px solid #e8c87a;border-radius:var(--r-sm);padding:12px 14px;margin-bottom:14px;font-size:.82rem;line-height:1.6}
+.criteria-box strong{color:var(--amber);display:block;margin-bottom:4px;font-size:.75rem;text-transform:uppercase;letter-spacing:.06em}
+.criteria-list{list-style:none;padding:0}
+.criteria-list li{padding:2px 0 2px 16px;position:relative}
+.criteria-list li::before{content:'✓';position:absolute;left:0;color:var(--amber)}
+.note-box{background:#f0f4ff;border:1px solid #c5d0f0;border-radius:var(--r-sm);padding:9px 12px;margin-bottom:12px;font-size:.8rem;color:#3d5080}
+textarea.narr{width:100%;min-height:110px;border:1.5px solid var(--border);border-radius:var(--r-sm);padding:11px 13px;font-family:'Source Sans 3',sans-serif;font-size:.9rem;line-height:1.6;resize:vertical;transition:border .2s;background:var(--cream)}
+textarea.narr:focus{outline:none;border-color:var(--gold);background:white}
+.rating-row{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}
+.rbn{padding:5px 13px;border-radius:20px;border:2px solid var(--border);background:white;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:'Source Sans 3',sans-serif}
+.rbn[data-v="1"].sel{background:var(--red);border-color:var(--red);color:white}
+.rbn[data-v="2"].sel{background:var(--amber);border-color:var(--amber);color:white}
+.rbn[data-v="3"].sel{background:#6b7280;border-color:#6b7280;color:white}
+.rbn[data-v="4"].sel{background:var(--green);border-color:var(--green);color:white}
+.rbn[data-v="5"].sel{background:var(--gold);border-color:var(--gold);color:var(--navy)}
+.save-row{display:flex;justify-content:flex-end;gap:7px;margin-top:10px}
 
-/* Evidence */
-.evidence-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
-.evidence-item { display: flex; align-items: center; gap: 10px; background: var(--cream); border-radius: 8px; padding: 10px 14px; border: 1px solid var(--border); }
-.evidence-icon { font-size: 1.2rem; flex-shrink: 0; }
-.evidence-name { flex: 1; font-size: 0.875rem; font-weight: 500; color: var(--navy); }
-.evidence-label-input { background: transparent; border: none; border-bottom: 1px dashed var(--border); font-size: 0.8rem; color: var(--text-muted); width: 120px; font-family: 'Source Sans 3', sans-serif; }
-.evidence-link { color: var(--gold); font-size: 0.8rem; text-decoration: none; }
-.evidence-link:hover { text-decoration: underline; }
+/* ── POLICY ── */
+.policy-search{display:flex;gap:7px;margin-bottom:14px}
+.policy-search input{flex:1;border:1.5px solid var(--border);border-radius:var(--r-sm);padding:8px 13px;font-family:'Source Sans 3',sans-serif;font-size:.875rem}
+.policy-search input:focus{outline:none;border-color:var(--gold)}
+.match-card{border:1.5px solid var(--border);border-radius:var(--r-sm);padding:13px;margin-bottom:9px;background:white;transition:border .2s}
+.match-card.accepted{border-color:var(--green);background:var(--green-bg)}
+.match-card.dismissed{opacity:.38;border-style:dashed}
+.match-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:7px;flex-wrap:wrap}
+.match-src{font-size:.75rem;font-weight:700;color:var(--navy);background:var(--cream2);padding:2px 8px;border-radius:20px}
+.match-pg{font-size:.75rem;font-weight:700;color:var(--gold)}
+.match-excerpt{font-size:.84rem;line-height:1.6;color:var(--text);font-style:italic;margin-bottom:6px;border-left:3px solid var(--gold);padding-left:10px}
+.match-why{font-size:.77rem;color:var(--muted)}
+.match-actions{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
+.matches-section-hdr{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:14px 0 7px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+.matches-section-hdr.green{color:var(--green)}
+.matches-section-hdr.muted{color:var(--muted)}
 
-/* Policy matches */
-.policy-search-bar { display: flex; gap: 8px; margin-bottom: 16px; }
-.policy-search-bar input { flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; font-family: 'Source Sans 3', sans-serif; font-size: 0.875rem; }
-.policy-search-bar input:focus { outline: none; border-color: var(--gold); }
-.match-card {
-  border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 10px; background: white;
-  position: relative;
-}
-.match-card.accepted { border-color: var(--success); background: var(--success-light); }
-.match-card.dismissed { opacity: 0.4; border-style: dashed; }
-.match-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-.match-source { font-size: 0.78rem; font-weight: 600; color: var(--navy); background: var(--cream2); padding: 3px 8px; border-radius: 20px; }
-.match-page { font-size: 0.78rem; color: var(--gold); font-weight: 600; }
-.match-excerpt { font-size: 0.85rem; line-height: 1.6; color: var(--text); font-style: italic; margin-bottom: 8px; }
-.match-relevance { font-size: 0.78rem; color: var(--text-muted); }
-.match-actions { display: flex; gap: 6px; margin-top: 10px; }
+/* ── EVIDENCE ── */
+.ev-list{display:flex;flex-direction:column;gap:7px;margin-bottom:12px}
+.ev-item{display:flex;align-items:center;gap:9px;background:var(--cream);border-radius:var(--r-sm);padding:9px 13px;border:1px solid var(--border)}
+.ev-icon{font-size:1.15rem;flex-shrink:0}
+.ev-name{flex:1;font-size:.85rem;font-weight:600;color:var(--navy)}
+.ev-link{color:var(--gold);font-size:.8rem;text-decoration:none;font-weight:600}
+.ev-link:hover{text-decoration:underline}
 
-/* Rating badges */
-.rating-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-.rating-btn { padding: 6px 14px; border-radius: 20px; border: 2px solid var(--border); background: white; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: 'Source Sans 3', sans-serif; }
-.rating-btn[data-val="1"].sel { background: var(--danger); border-color: var(--danger); color: white; }
-.rating-btn[data-val="2"].sel { background: var(--warn); border-color: var(--warn); color: white; }
-.rating-btn[data-val="3"].sel { background: var(--success); border-color: var(--success); color: white; }
-.rating-btn[data-val="4"].sel { background: var(--navy); border-color: var(--navy); color: white; }
-.rating-btn[data-val="5"].sel { background: var(--gold); border-color: var(--gold); color: var(--navy); }
+/* ── DOCS VIEW ── */
+.docs-view{padding:28px 32px;max-width:900px}
+.docs-view h2{font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--navy);margin-bottom:4px}
+.drop-zone{border:2px dashed var(--border);border-radius:12px;padding:28px;text-align:center;background:white;cursor:pointer;transition:all .2s;margin-bottom:18px}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--gold);background:var(--gold-pale)}
+.drop-zone .dz-icon{font-size:2.2rem;margin-bottom:6px}
+.doc-form{background:white;border:1px solid var(--border);border-radius:var(--r);padding:18px;margin-bottom:18px;display:none}
+.doc-form.show{display:block}
+.form-row{display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.fg{flex:1;min-width:180px;display:flex;flex-direction:column;gap:4px}
+.fg label{font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.fg input,.fg select{border:1.5px solid var(--border);border-radius:var(--r-sm);padding:8px 11px;font-family:'Source Sans 3',sans-serif;font-size:.875rem}
+.fg input:focus,.fg select:focus{outline:none;border-color:var(--gold)}
+.doc-list{display:flex;flex-direction:column;gap:9px}
+.doc-item{background:white;border:1px solid var(--border);border-radius:var(--r);padding:14px 18px;display:flex;align-items:center;gap:11px;box-shadow:var(--shadow)}
+.doc-badge{padding:2px 9px;border-radius:20px;font-size:.72rem;font-weight:700;background:var(--cream2);color:var(--navy)}
+.doc-badge.shared{background:var(--green-bg);color:var(--green)}
+.doc-name{flex:1;font-weight:700;font-size:.88rem;color:var(--navy)}
+.doc-meta{font-size:.77rem;color:var(--muted)}
 
-/* DOCUMENTS VIEW */
-.docs-view { padding: 32px; max-width: 900px; }
-.docs-view h2 { font-family: 'Playfair Display', serif; font-size: 1.6rem; color: var(--navy); margin-bottom: 6px; }
-.docs-view p.sub { color: var(--text-muted); margin-bottom: 24px; }
-.upload-zone {
-  border: 2px dashed var(--border); border-radius: 12px; padding: 32px; text-align: center;
-  background: white; cursor: pointer; transition: all 0.2s; margin-bottom: 24px;
-}
-.upload-zone:hover, .upload-zone.drag { border-color: var(--gold); background: var(--cream); }
-.upload-zone .icon { font-size: 2.5rem; margin-bottom: 8px; }
-.upload-zone p { color: var(--text-muted); font-size: 0.9rem; }
-.upload-zone input { display: none; }
-.doc-form { background: white; border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; display: none; }
-.doc-form.show { display: block; }
-.form-row { display: flex; gap: 12px; margin-bottom: 12px; }
-.form-group { flex: 1; display: flex; flex-direction: column; gap: 4px; }
-.form-group label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-.form-group input, .form-group select { border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; font-family: 'Source Sans 3', sans-serif; font-size: 0.875rem; }
-.doc-list { display: flex; flex-direction: column; gap: 10px; }
-.doc-item { background: white; border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow); }
-.doc-type-badge { padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; background: var(--cream2); color: var(--navy); }
-.doc-item-name { flex: 1; font-weight: 600; font-size: 0.9rem; color: var(--navy); }
-.doc-item-pages { font-size: 0.8rem; color: var(--text-muted); }
+/* ── ADMIN VIEW ── */
+.admin-view{padding:28px 32px;max-width:800px}
+.admin-view h2{font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--navy);margin-bottom:20px}
+.admin-section{background:white;border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:18px;box-shadow:var(--shadow)}
+.admin-section h3{font-size:.95rem;font-weight:700;color:var(--navy);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.user-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
+.user-row:last-child{border-bottom:none}
+.user-name{flex:1;font-weight:600;font-size:.88rem}
+.user-meta{font-size:.78rem;color:var(--muted)}
 
-/* SECTION BUILDER MODAL */
-.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(26,39,68,0.5); z-index: 200; align-items: center; justify-content: center; }
-.modal-overlay.open { display: flex; }
-.modal { background: white; border-radius: 14px; width: 700px; max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); }
-.modal-header { padding: 24px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: white; z-index: 1; }
-.modal-header h3 { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: var(--navy); }
-.modal-close { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--text-muted); padding: 4px 8px; border-radius: 6px; }
-.modal-close:hover { background: var(--cream); }
-.modal-body { padding: 24px; }
-.modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; sticky: bottom 0; background: white; }
-.items-editor { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
-.item-row { background: var(--cream); border-radius: 8px; padding: 14px; border: 1px solid var(--border); }
-.item-row-top { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
-.item-row input, .item-row textarea { border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; font-family: 'Source Sans 3', sans-serif; font-size: 0.85rem; background: white; width: 100%; }
-.item-row textarea { min-height: 60px; resize: vertical; }
+/* ── SETTINGS VIEW ── */
+.settings-view{padding:28px 32px;max-width:500px}
+.settings-view h2{font-family:'Playfair Display',serif;font-size:1.5rem;color:var(--navy);margin-bottom:20px}
+.settings-card{background:white;border:1px solid var(--border);border-radius:var(--r);padding:20px;box-shadow:var(--shadow)}
 
-/* BUTTONS */
-.btn { padding: 8px 18px; border-radius: 7px; border: none; font-family: 'Source Sans 3', sans-serif; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
-.btn-primary { background: var(--navy); color: white; }
-.btn-primary:hover { background: var(--navy-light); }
-.btn-gold { background: var(--gold); color: var(--navy); }
-.btn-gold:hover { background: var(--gold-light); }
-.btn-outline { background: white; color: var(--navy); border: 1px solid var(--border); }
-.btn-outline:hover { border-color: var(--navy); }
-.btn-danger { background: var(--danger-light); color: var(--danger); border: 1px solid #f5c5c5; }
-.btn-danger:hover { background: var(--danger); color: white; }
-.btn-success { background: var(--success-light); color: var(--success); border: 1px solid #b8e0c8; }
-.btn-success:hover { background: var(--success); color: white; }
-.btn-sm { padding: 5px 10px; font-size: 0.78rem; }
-.btn-icon { padding: 5px 8px; font-size: 1rem; }
+/* ── MODAL ── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(26,39,68,.5);z-index:300;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:white;border-radius:14px;width:500px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg)}
+.modal-hdr{padding:20px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:white;z-index:1}
+.modal-hdr h3{font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--navy)}
+.modal-x{background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--muted);padding:3px 7px;border-radius:5px}
+.modal-x:hover{background:var(--cream)}
+.modal-body{padding:20px 22px}
+.modal-foot{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:7px;background:white}
 
-/* Loader */
-.spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; }
-.spinner.dark { border-color: rgba(0,0,0,0.15); border-top-color: var(--navy); }
-@keyframes spin { to { transform: rotate(360deg); } }
+/* ── BUTTONS ── */
+.btn{padding:7px 16px;border-radius:var(--r-sm);border:none;font-family:'Source Sans 3',sans-serif;font-size:.84rem;font-weight:700;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:5px}
+.btn-navy{background:var(--navy);color:white}.btn-navy:hover{background:var(--navy-light)}
+.btn-gold{background:var(--gold);color:var(--navy)}.btn-gold:hover{background:var(--gold-light)}
+.btn-outline{background:white;color:var(--navy);border:1.5px solid var(--border)}.btn-outline:hover{border-color:var(--navy)}
+.btn-red{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}.btn-red:hover{background:var(--red);color:white}
+.btn-green{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}.btn-green:hover{background:var(--green);color:white}
+.btn-sm{padding:4px 10px;font-size:.76rem}
+.btn-xs{padding:3px 8px;font-size:.72rem}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:white;border-radius:50%;animation:spin .6s linear infinite}
+.spin.dark{border-color:rgba(0,0,0,.15);border-top-color:var(--navy)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{text-align:center;padding:36px;color:var(--muted)}
+.empty .ei{font-size:2.4rem;margin-bottom:10px}
 
-.empty-state { text-align: center; padding: 48px 24px; color: var(--text-muted); }
-.empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
-.empty-state p { font-size: 0.95rem; }
+/* ── TOAST ── */
+.toast{position:fixed;bottom:22px;right:22px;background:var(--navy);color:white;padding:11px 18px;border-radius:8px;font-size:.85rem;z-index:999;opacity:0;transform:translateY(8px);transition:all .3s;pointer-events:none;max-width:320px}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.ok{background:var(--green)}
+.toast.err{background:var(--red)}
 
-.tag { display: inline-flex; align-items: center; gap: 4px; background: var(--cream2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 10px; font-size: 0.75rem; color: var(--text-muted); }
-.toast { position: fixed; bottom: 24px; right: 24px; background: var(--navy); color: white; padding: 12px 20px; border-radius: 8px; font-size: 0.875rem; z-index: 999; opacity: 0; transform: translateY(10px); transition: all 0.3s; pointer-events: none; }
-.toast.show { opacity: 1; transform: translateY(0); }
-.toast.success { background: var(--success); }
-.toast.error { background: var(--danger); }
+/* ── NO-SELECT ── */
+.no-select-msg{display:flex;align-items:center;justify-content:center;height:100%;min-height:300px;flex-direction:column;gap:10px;color:var(--muted)}
+.no-select-msg .ei{font-size:3rem}
 </style>
 </head>
 <body>
 
-<header class="app-header">
-  <h1>GSQ Self-Reflection <span>Great Start to Quality · The Children's Center</span></h1>
-  <nav class="header-nav">
-    <button class="nav-btn active" onclick="showView('dashboard')">📊 Dashboard</button>
-    <button class="nav-btn" onclick="showView('sections')">📋 Self-Reflection</button>
-    <button class="nav-btn" onclick="showView('documents')">📁 Handbooks & Policies</button>
-  </nav>
-</header>
-
-<div class="app-body">
-  <!-- Sidebar: section list -->
-  <aside class="sidebar" id="sidebar" style="display:none">
-    <div class="sidebar-header"><h2>Sections</h2></div>
-    <button class="add-section-btn" onclick="openSectionModal()">+ Add Section</button>
-    <div class="section-list" id="sectionList"></div>
-  </aside>
-
-  <main class="main-content">
-    <!-- DASHBOARD VIEW -->
-    <div class="view active" id="view-dashboard">
-      <div class="dashboard">
-        <div class="dashboard-title">Self-Reflection Dashboard</div>
-        <p class="dashboard-sub">Track your progress across all GSQ sections.</p>
-        <div class="stats-row" id="statsRow"></div>
-        <div class="section-cards" id="sectionCards"></div>
-        <div class="empty-state" id="dashEmptyState" style="display:none">
-          <div class="icon">📋</div>
-          <p>No sections yet. Switch to <strong>Self-Reflection</strong> to add your first GSQ section.</p>
-        </div>
-      </div>
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="star">⭐</div>
+      <h1>GSQ Self-Reflection</h1>
+      <p>Great Start to Quality · The Children's Center</p>
     </div>
-
-    <!-- SECTIONS / ITEMS VIEW -->
-    <div class="view" id="view-sections">
-      <div id="noSectionSelected" class="empty-state" style="padding-top:80px">
-        <div class="icon">👈</div>
-        <p>Select a section from the sidebar, or add a new one to get started.</p>
-      </div>
-      <div id="sectionEditorWrap" style="display:none" class="section-editor">
-        <div class="section-editor-header">
-          <div>
-            <h2 id="editorSectionName"></h2>
-            <p id="editorSectionDesc"></p>
-          </div>
-          <div class="header-actions">
-            <button class="btn btn-outline btn-sm" onclick="editCurrentSection()">✏️ Edit Section</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteCurrentSection()">🗑️ Delete</button>
-          </div>
-        </div>
-        <div id="itemsContainer"></div>
-      </div>
-    </div>
-
-    <!-- DOCUMENTS VIEW -->
-    <div class="view" id="view-documents">
-      <div class="docs-view">
-        <h2>Handbooks & Policy Documents</h2>
-        <p class="sub">Upload your staff handbook, family handbook, and policy documents. The AI will search these when auto-populating policy evidence for each GSQ item.</p>
-
-        <div class="upload-zone" id="uploadZone" onclick="document.getElementById('docFileInput').click()">
-          <div class="icon">📄</div>
-          <p><strong>Click to upload</strong> or drag & drop a PDF or Word document</p>
-          <p style="font-size:0.8rem; margin-top:4px">PDF and .docx files supported · Max 50MB</p>
-          <input type="file" id="docFileInput" accept=".pdf,.doc,.docx" onchange="handleDocFileSelect(event)">
-        </div>
-
-        <div class="doc-form" id="docForm">
-          <div class="form-row">
-            <div class="form-group">
-              <label>Document Name</label>
-              <input type="text" id="docName" placeholder="e.g. Staff Handbook 2024–2025">
-            </div>
-            <div class="form-group">
-              <label>Document Type</label>
-              <select id="docType">
-                <option value="staff_handbook">Staff Handbook</option>
-                <option value="family_handbook">Family Handbook</option>
-                <option value="policy">Policy Document</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-          </div>
-          <div style="display:flex; gap:8px; justify-content:flex-end">
-            <button class="btn btn-outline" onclick="cancelDocUpload()">Cancel</button>
-            <button class="btn btn-primary" id="confirmUploadBtn" onclick="confirmDocUpload()">Upload & Index Document</button>
-          </div>
-        </div>
-
-        <div id="docList" class="doc-list"></div>
-      </div>
-    </div>
-  </main>
+    <div class="field"><label>Username</label><input type="text" id="loginUser" placeholder="username" autocomplete="username"></div>
+    <div class="field"><label>Password</label><input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <button class="login-btn" onclick="doLogin()" id="loginBtn">Sign In</button>
+    <div class="login-error" id="loginErr"></div>
+  </div>
 </div>
 
-<!-- SECTION BUILDER MODAL -->
-<div class="modal-overlay" id="sectionModal">
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-logo">GSQ Self-Reflection<span>The Children's Center</span></div>
+    <div class="loc-switcher" id="locSwitcher"></div>
+    <div class="topbar-spacer"></div>
+    <nav class="nav-tabs">
+      <button class="nav-tab active" onclick="showView('dashboard',this)">📊 Dashboard</button>
+      <button class="nav-tab" onclick="showView('reflection',this)">📋 Self-Reflection</button>
+      <button class="nav-tab" onclick="showView('documents',this)">📁 Documents</button>
+      <button class="nav-tab admin-only" onclick="showView('admin',this)" style="display:none">⚙️ Admin</button>
+    </nav>
+    <div class="user-pill" id="userPill">
+      <span id="userLabel">–</span>
+      <button onclick="showView('settings',document.querySelector('.nav-tab.active'))">🔑</button>
+      <button onclick="doLogout()">↪ Logout</button>
+    </div>
+  </div>
+
+  <div class="app-body">
+    <aside class="sidebar" id="sidebar" style="display:none">
+      <div id="sidebarContent"></div>
+    </aside>
+    <main class="main">
+      <div class="view active" id="view-dashboard"><div class="dash" id="dashContent"></div></div>
+      <div class="view" id="view-reflection">
+        <div id="noSel" class="no-select-msg"><div class="ei">👈</div><p>Select a section from the sidebar</p></div>
+        <div id="secEditorWrap" style="display:none"></div>
+      </div>
+      <div class="view" id="view-documents"><div id="docsContent"></div></div>
+      <div class="view admin-only" id="view-admin" style="display:none"><div id="adminContent"></div></div>
+      <div class="view" id="view-settings"><div id="settingsContent"></div></div>
+    </main>
+  </div>
+</div>
+
+<div class="overlay" id="genericModal">
   <div class="modal">
-    <div class="modal-header">
-      <h3 id="modalTitle">Add GSQ Section</h3>
-      <button class="modal-close" onclick="closeSectionModal()">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-group" style="margin-bottom:14px">
-        <label>Section Name</label>
-        <input type="text" id="mSectionName" placeholder="e.g. Curriculum and Learning Environment">
-      </div>
-      <div class="form-group" style="margin-bottom:14px">
-        <label>Description (optional)</label>
-        <input type="text" id="mSectionDesc" placeholder="Brief description of this section">
-      </div>
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px">
-        <label style="font-size:0.8rem; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em">Items / Questions</label>
-        <button class="btn btn-outline btn-sm" onclick="addItemRow()">+ Add Item</button>
-      </div>
-      <div class="items-editor" id="itemsEditor"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeSectionModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveSection()">Save Section</button>
-    </div>
+    <div class="modal-hdr"><h3 id="modalTitle">Modal</h3><button class="modal-x" onclick="closeModal()">×</button></div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot" id="modalFoot"></div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // STATE
-// ═══════════════════════════════════════════════════════
-let sections = [];
-let documents = [];
+// ═══════════════════════════════════════════
+let me = null; // { role, locationId }
+let locations = [];
+let framework = [];
+let currentLocId = null;
 let currentSectionId = null;
-let currentSection = null;
-let editingSectionId = null;
-let pendingDocFile = null;
 let progress = {};
-// responses cache: { [sectionId]: { [itemId]: response } }
-let responsesCache = {};
+let responsesCache = {}; // { locId: { sectionId: { itemId: response } } }
+let documents = [];
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════
+async function doLogin() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  const btn = document.getElementById('loginBtn');
+  const err = document.getElementById('loginErr');
+  btn.innerHTML = '<span class="spin"></span> Signing in…'; btn.disabled = true; err.textContent = '';
+  try {
+    const r = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:u,password:p}) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Login failed');
+    me = { role: d.user.role, locationId: d.user.locationId, name: d.user.name };
+    await initApp();
+  } catch(e) { err.textContent = e.message; }
+  btn.innerHTML = 'Sign In'; btn.disabled = false;
+}
+
+async function doLogout() {
+  await fetch('/api/auth/logout', { method:'POST' });
+  location.reload();
+}
+
+async function checkAuth() {
+  const r = await fetch('/api/auth/me');
+  const d = await r.json();
+  return d;
+}
+
+// ═══════════════════════════════════════════
 // INIT
-// ═══════════════════════════════════════════════════════
-async function init() {
-  await Promise.all([loadSections(), loadDocuments()]);
+// ═══════════════════════════════════════════
+async function initApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+
+  // Admin UI
+  if (me.role === 'admin') {
+    document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
+  }
+  document.getElementById('userLabel').textContent = me.name || me.role;
+
+  const [locsRes, fwRes] = await Promise.all([fetch('/api/locations'), fetch('/api/framework')]);
+  locations = await locsRes.json();
+  framework = await fwRes.json();
+
+  // Set initial location
+  if (me.role === 'admin') {
+    currentLocId = locations[0]?._id || null;
+  } else {
+    currentLocId = me.locationId;
+  }
+
+  renderLocSwitcher();
+  await loadProgress();
+  renderDashboard();
+  renderSidebar();
+  renderDocsView();
+  if (me.role === 'admin') renderAdminView();
+  renderSettingsView();
+}
+
+// ═══════════════════════════════════════════
+// VIEWS
+// ═══════════════════════════════════════════
+function showView(name, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  document.getElementById('sidebar').style.display = name === 'reflection' ? 'flex' : 'none';
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'documents') renderDocsView();
+  if (name === 'admin' && me.role === 'admin') renderAdminView();
+}
+
+// ═══════════════════════════════════════════
+// LOCATION SWITCHER
+// ═══════════════════════════════════════════
+function renderLocSwitcher() {
+  if (me.role !== 'admin') return;
+  const sw = document.getElementById('locSwitcher');
+  sw.innerHTML = locations.map(l =>
+    `<button class="loc-btn ${l._id === currentLocId ? 'active' : ''}" onclick="switchLoc('${l._id}')">${l.name}</button>`
+  ).join('');
+}
+
+async function switchLoc(id) {
+  currentLocId = id;
+  renderLocSwitcher();
+  currentSectionId = null;
+  document.getElementById('noSel').style.display = 'flex';
+  document.getElementById('secEditorWrap').style.display = 'none';
+  await loadProgress();
+  renderSidebar();
   renderDashboard();
 }
 
-// ═══════════════════════════════════════════════════════
-// VIEWS
-// ═══════════════════════════════════════════════════════
-function showView(view) {
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('view-' + view).classList.add('active');
-  event.target.classList.add('active');
-  const sidebar = document.getElementById('sidebar');
-  sidebar.style.display = view === 'sections' ? 'flex' : 'none';
-  if (view === 'dashboard') renderDashboard();
-  if (view === 'documents') renderDocList();
-}
-
-// ═══════════════════════════════════════════════════════
-// SECTIONS
-// ═══════════════════════════════════════════════════════
-async function loadSections() {
-  const res = await fetch('/api/sections');
-  sections = await res.json();
-  const pres = await fetch('/api/progress');
-  const prog = await pres.json();
+// ═══════════════════════════════════════════
+// PROGRESS + SIDEBAR
+// ═══════════════════════════════════════════
+async function loadProgress() {
+  const url = currentLocId ? `/api/progress?locationId=${currentLocId}` : '/api/progress';
+  const r = await fetch(url);
+  const data = await r.json();
   progress = {};
-  prog.forEach(p => { progress[p._id] = p; });
-  renderSidebar();
+  data.forEach(p => { progress[p.id] = p; });
 }
 
 function renderSidebar() {
-  const list = document.getElementById('sectionList');
-  if (!sections.length) { list.innerHTML = '<div class="empty-state" style="padding:20px"><p>No sections yet</p></div>'; return; }
-  list.innerHTML = sections.map(s => {
-    const p = progress[s._id] || { completed: 0, totalItems: (s.items||[]).length };
+  const locName = locations.find(l => l._id === currentLocId)?.name || '';
+  let html = `<div class="sidebar-section"><div class="sidebar-section-title">${locName || 'All Locations'}</div>`;
+  framework.forEach(sec => {
+    const p = progress[sec.id] || { completed: 0, totalItems: sec.items.length };
     const pct = p.totalItems ? Math.round(p.completed / p.totalItems * 100) : 0;
-    return `<div class="section-item ${s._id === currentSectionId ? 'active' : ''}" onclick="selectSection('${s._id}')">
-      <div class="section-item-name">${s.name}</div>
-      <div class="section-item-progress">
-        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-        <span class="progress-text">${p.completed}/${p.totalItems}</span>
+    html += `<div class="sidebar-item ${sec.id === currentSectionId ? 'active' : ''}" onclick="selectSection('${sec.id}')">
+      <div class="sidebar-item-name">${sec.name}</div>
+      <div class="sidebar-prog">
+        <div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div>
+        <span class="prog-text">${p.completed}/${p.totalItems}</span>
       </div>
     </div>`;
-  }).join('');
+  });
+  html += '</div>';
+  document.getElementById('sidebarContent').innerHTML = html;
 }
 
+// ═══════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════
+function renderDashboard() {
+  const locName = me.role === 'admin'
+    ? (locations.find(l => l._id === currentLocId)?.name || 'All')
+    : (me.name || 'Your Center');
+  const totalItems = framework.reduce((a, s) => a + s.items.length, 0);
+  const totalDone = Object.values(progress).reduce((a, p) => a + p.completed, 0);
+  const pct = totalItems ? Math.round(totalDone / totalItems * 100) : 0;
+  const docCount = documents.length;
+
+  let html = `<h2>Self-Reflection Dashboard</h2>
+    <p class="dash-sub">${locName} · Great Start to Quality Progress Tracker</p>
+    <div class="stats">
+      <div class="stat"><div class="val">${pct}%</div><div class="lbl">Overall Complete</div></div>
+      <div class="stat"><div class="val">${totalDone}/${totalItems}</div><div class="lbl">Items with Responses</div></div>
+      <div class="stat"><div class="val">${framework.length}</div><div class="lbl">Sections</div></div>
+      <div class="stat"><div class="val">${documents.length}</div><div class="lbl">Docs Indexed</div></div>
+    </div>
+    <div class="section-grid">`;
+
+  framework.forEach(sec => {
+    const p = progress[sec.id] || { completed: 0, totalItems: sec.items.length };
+    const p2 = p.totalItems ? Math.round(p.completed / p.totalItems * 100) : 0;
+    html += `<div class="sec-card" onclick="goToSection('${sec.id}')">
+      <h3>${sec.name}</h3>
+      <div class="bar"><div class="bar-fill" style="width:${p2}%"></div></div>
+      <div class="pct">${p.completed} of ${p.totalItems} items · ${p2}%</div>
+    </div>`;
+  });
+  html += '</div>';
+  document.getElementById('dashContent').innerHTML = html;
+}
+
+function goToSection(id) {
+  document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.nav-tab')[1].classList.add('active');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-reflection').classList.add('active');
+  document.getElementById('sidebar').style.display = 'flex';
+  selectSection(id);
+}
+
+// ═══════════════════════════════════════════
+// SECTION + ITEMS
+// ═══════════════════════════════════════════
 async function selectSection(id) {
   currentSectionId = id;
-  currentSection = sections.find(s => s._id === id);
   renderSidebar();
-  await loadSectionEditor();
+  document.getElementById('noSel').style.display = 'none';
+  document.getElementById('secEditorWrap').style.display = 'block';
+  await renderSectionEditor();
 }
 
-async function loadSectionEditor() {
-  if (!currentSection) return;
-  document.getElementById('noSectionSelected').style.display = 'none';
-  document.getElementById('sectionEditorWrap').style.display = 'block';
-  document.getElementById('editorSectionName').textContent = currentSection.name;
-  document.getElementById('editorSectionDesc').textContent = currentSection.description || '';
+async function renderSectionEditor() {
+  const sec = framework.find(s => s.id === currentSectionId);
+  if (!sec) return;
+  const locId = currentLocId || (me.role !== 'admin' ? me.locationId : null);
+  const url = `/api/responses/${sec.id}${locId ? '?locationId=' + locId : ''}`;
+  const r = await fetch(url);
+  const responses = await r.json();
+  if (!responsesCache[locId]) responsesCache[locId] = {};
+  if (!responsesCache[locId][sec.id]) responsesCache[locId][sec.id] = {};
+  responses.forEach(resp => { responsesCache[locId][sec.id][resp.itemId] = resp; });
 
-  // Load responses
-  const res = await fetch('/api/responses/' + currentSectionId);
-  const responses = await res.json();
-  responsesCache[currentSectionId] = {};
-  responses.forEach(r => { responsesCache[currentSectionId][r.itemId] = r; });
-
-  renderItems();
-}
-
-function renderItems() {
-  const container = document.getElementById('itemsContainer');
-  const items = currentSection.items || [];
-  if (!items.length) { container.innerHTML = '<div class="empty-state"><div class="icon">📝</div><p>No items in this section yet. Edit the section to add items.</p></div>'; return; }
-
-  container.innerHTML = items.map((item, i) => {
-    const resp = (responsesCache[currentSectionId] || {})[item.id] || {};
-    const isDone = resp.narrative && resp.narrative.trim();
-    const policyCount = (resp.policyMatches || []).filter(m => m.status === 'accepted').length;
-    return `<div class="item-card" id="itemcard-${item.id}">
-      <div class="item-header" onclick="toggleItem('${item.id}', this)">
-        <div class="item-number ${isDone ? 'done' : ''}">${i+1}</div>
-        <div class="item-title-block">
-          <div class="item-title">${item.title}</div>
-          <div class="item-criteria">${item.criteria || ''}</div>
-          <div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap">
-            ${isDone ? '<span class="tag">✅ Response saved</span>' : ''}
-            ${policyCount ? `<span class="tag">📄 ${policyCount} policy ref${policyCount>1?'s':''}</span>` : ''}
-            ${resp.rating ? `<span class="tag">⭐ Self-rating: ${resp.rating}/5</span>` : ''}
-          </div>
-        </div>
-        <span class="item-expand-icon">▾</span>
-      </div>
-      <div class="item-body" id="itembody-${item.id}" style="display:none">
-        <div class="item-tabs">
-          <button class="item-tab active" onclick="switchTab('${item.id}','narrative',this)">📝 My Response</button>
-          <button class="item-tab" onclick="switchTab('${item.id}','policies',this)">📄 Policy Evidence</button>
-          <button class="item-tab" onclick="switchTab('${item.id}','evidence',this)">🗂️ File Evidence</button>
-        </div>
-        <div class="tab-pane active" id="tab-${item.id}-narrative">
-          ${renderNarrativeTab(item, resp)}
-        </div>
-        <div class="tab-pane" id="tab-${item.id}-policies">
-          ${renderPoliciesTab(item, resp)}
-        </div>
-        <div class="tab-pane" id="tab-${item.id}-evidence">
-          ${renderEvidenceTab(item)}
-        </div>
-      </div>
+  let html = `<div class="sec-editor">
+    <div class="sec-editor-hdr">
+      <div><h2>${sec.name}</h2><p>${sec.description}</p></div>
     </div>`;
-  }).join('');
+  sec.items.forEach((item, i) => {
+    const resp = responsesCache[locId]?.[sec.id]?.[item.id] || {};
+    html += renderItemCard(item, i + 1, resp);
+  });
+  html += '</div>';
+  document.getElementById('secEditorWrap').innerHTML = html;
 }
 
-function renderNarrativeTab(item, resp) {
-  const labels = ['Not yet in place', 'Beginning', 'Developing', 'Established', 'Exemplary'];
-  const ratingBtns = [1,2,3,4,5].map(v =>
-    `<button class="rating-btn ${resp.rating==v?'sel':''}" data-val="${v}" onclick="setRating('${item.id}', ${v}, this)">${v} – ${labels[v-1]}</button>`
-  ).join('');
-  return `
-    <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:8px">Describe how your program demonstrates this item. Include specific examples, practices, and evidence.</p>
-    <textarea class="narrative" id="narrative-${item.id}" placeholder="Write your self-reflection response here...">${resp.narrative || ''}</textarea>
-    <div class="rating-row">${ratingBtns}</div>
-    <div class="save-row">
-      <button class="btn btn-outline btn-sm" onclick="clearNarrative('${item.id}')">Clear</button>
-      <button class="btn btn-primary btn-sm" id="saveBtn-${item.id}" onclick="saveNarrative('${item.id}')">💾 Save Response</button>
-    </div>`;
+function renderItemCard(item, num, resp) {
+  const isDone = resp.narrative && resp.narrative.trim();
+  const policyCount = (resp.policyMatches || []).filter(m => m.status === 'accepted').length;
+  const evidenceLabel = resp.evidenceCount > 0 ? resp.evidenceCount : '';
+  let numClass = isDone ? 'done' : policyCount ? 'partial' : '';
+  let badges = '';
+  if (isDone) badges += `<span class="badge green">✅ Response saved</span>`;
+  if (policyCount) badges += `<span class="badge gold">📄 ${policyCount} policy ref${policyCount > 1 ? 's' : ''}</span>`;
+  if (resp.rating) {
+    const labels = ['','Not yet','Beginning','Developing','Established','Exemplary'];
+    badges += `<span class="badge">⭐ ${labels[resp.rating]}</span>`;
+  }
+  if (item.note) badges += `<span class="badge" style="background:#f0f4ff;border-color:#c5d0f0;color:#3d5080">ℹ️ ${item.note.length > 60 ? item.note.slice(0, 60) + '…' : item.note}</span>`;
+  return `<div class="item-card" id="ic-${item.id}">
+    <div class="item-hdr" id="ih-${item.id}" onclick="toggleItem('${item.id}', this)">
+      <div class="item-num ${numClass}">${num}</div>
+      <div class="item-info">
+        <div class="item-title">${item.title}</div>
+        <div class="item-sub">${item.fullText}</div>
+        <div class="item-badges" id="ib-${item.id}">${badges}</div>
+      </div>
+      <span class="expand-icon">▾</span>
+    </div>
+    <div class="item-body" id="ibody-${item.id}">
+      <div class="item-tabs">
+        <button class="itab active" onclick="switchTab('${item.id}','narr',this)">📝 My Response</button>
+        <button class="itab" onclick="switchTab('${item.id}','policy',this)">📄 Policy Evidence</button>
+        <button class="itab" onclick="switchTab('${item.id}','files',this)">🗂️ File Evidence</button>
+      </div>
+      <div class="tab-body active" id="tab-${item.id}-narr">${renderNarr(item, resp)}</div>
+      <div class="tab-body" id="tab-${item.id}-policy">${renderPolicy(item, resp)}</div>
+      <div class="tab-body" id="tab-${item.id}-files">${renderFilesTab(item)}</div>
+    </div>
+  </div>`;
 }
 
-function renderPoliciesTab(item, resp) {
+// ─── NARRATIVE TAB ───────────────────────────────────────────────────────────
+function renderNarr(item, resp) {
+  let html = '';
+  if (item.note) html += `<div class="note-box">ℹ️ ${item.note}</div>`;
+  html += `<div class="criteria-box"><strong>What Evaluators Are Looking For:</strong><ul class="criteria-list">`;
+  (item.checklistItems || []).forEach(c => { html += `<li>${c}</li>`; });
+  html += `</ul></div>`;
+  html += `<textarea class="narr" id="narr-${item.id}" placeholder="Write your self-reflection response here. Be specific — describe what your program does, how it does it, and reference the evidence you have…">${resp.narrative || ''}</textarea>`;
+  const rlabels = ['Not yet in place','Beginning','Developing','Established','Exemplary'];
+  html += `<div class="rating-row">`;
+  [1,2,3,4,5].forEach(v => {
+    html += `<button class="rbn ${resp.rating==v?'sel':''}" data-v="${v}" onclick="setRating('${item.id}',${v},this)">${v} – ${rlabels[v-1]}</button>`;
+  });
+  html += `</div><div class="save-row">
+    <button class="btn btn-outline btn-sm" onclick="document.getElementById('narr-${item.id}').value=''">Clear</button>
+    <button class="btn btn-navy btn-sm" id="savebtn-${item.id}" onclick="saveNarr('${item.id}')">💾 Save Response</button>
+  </div>`;
+  return html;
+}
+
+async function saveNarr(itemId) {
+  const narrative = document.getElementById('narr-' + itemId).value;
+  const locId = currentLocId || me.locationId;
+  const sec = framework.find(s => s.items.some(i => i.id === itemId));
+  const resp = responsesCache[locId]?.[sec.id]?.[itemId] || {};
+  const btn = document.getElementById('savebtn-' + itemId);
+  btn.innerHTML = '<span class="spin"></span>';
+  try {
+    await fetch('/api/responses', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ sectionId: sec.id, itemId, narrative, policyMatches: resp.policyMatches || [], rating: resp.rating, locationId: locId }) });
+    if (!responsesCache[locId]) responsesCache[locId] = {};
+    if (!responsesCache[locId][sec.id]) responsesCache[locId][sec.id] = {};
+    responsesCache[locId][sec.id][itemId] = { ...resp, narrative };
+    toast('Saved ✓', 'ok');
+    refreshItemBadges(itemId, sec.id, locId);
+    await loadProgress(); renderSidebar(); renderDashboard();
+  } catch(e) { toast('Save failed', 'err'); }
+  btn.innerHTML = '💾 Save Response';
+}
+
+function setRating(itemId, val, btn) {
+  btn.closest('.rating-row').querySelectorAll('.rbn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  const locId = currentLocId || me.locationId;
+  const sec = framework.find(s => s.items.some(i => i.id === itemId));
+  if (!responsesCache[locId]) responsesCache[locId] = {};
+  if (!responsesCache[locId][sec.id]) responsesCache[locId][sec.id] = {};
+  const resp = responsesCache[locId][sec.id][itemId] || {};
+  responsesCache[locId][sec.id][itemId] = { ...resp, rating: val };
+  const narrative = document.getElementById('narr-' + itemId)?.value || resp.narrative || '';
+  fetch('/api/responses', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ sectionId: sec.id, itemId, narrative, policyMatches: resp.policyMatches || [], rating: val, locationId: locId }) });
+}
+
+// ─── POLICY TAB ──────────────────────────────────────────────────────────────
+function renderPolicy(item, resp) {
   const matches = resp.policyMatches || [];
   const accepted = matches.filter(m => m.status === 'accepted');
   const pending = matches.filter(m => !m.status || m.status === 'pending');
   const dismissed = matches.filter(m => m.status === 'dismissed');
 
-  const renderMatch = (m, i) => {
-    const typeLabel = {staff_handbook:'Staff Handbook', family_handbook:'Family Handbook', policy:'Policy Doc', other:'Document'}[m.docType] || 'Document';
-    return `<div class="match-card ${m.status === 'accepted' ? 'accepted' : m.status === 'dismissed' ? 'dismissed' : ''}" id="match-${item.id}-${i}">
-      <div class="match-header">
-        <span class="match-source">📖 ${m.docName} <span style="font-weight:400;opacity:0.7">(${typeLabel})</span></span>
-        <span class="match-page">Page ${m.page}</span>
-      </div>
-      <div class="match-excerpt">"${m.excerpt}"</div>
-      <div class="match-relevance">💡 ${m.relevance}</div>
-      ${m.status !== 'accepted' && m.status !== 'dismissed' ? `
-        <div class="match-actions">
-          <button class="btn btn-success btn-sm" onclick="acceptMatch('${item.id}', ${i})">✓ Use This</button>
-          <button class="btn btn-danger btn-sm" onclick="dismissMatch('${item.id}', ${i})">✕ Dismiss</button>
-        </div>` : m.status === 'accepted' ? `<div class="match-actions"><span class="tag" style="background:var(--success-light);color:var(--success)">✓ Accepted</span><button class="btn btn-outline btn-sm" onclick="dismissMatch('${item.id}', ${i})">Remove</button></div>` 
-        : `<div class="match-actions"><button class="btn btn-outline btn-sm" onclick="restoreMatch('${item.id}', ${i})">↩ Restore</button></div>`}
-    </div>`;
-  };
+  let html = `<div class="policy-search">
+    <input type="text" id="pq-${item.id}" placeholder="Search your handbooks & policies (e.g. 'supervision policy', 'conference')…" onkeydown="if(event.key==='Enter')searchPolicy('${item.id}')">
+    <button class="btn btn-outline btn-sm" onclick="searchPolicy('${item.id}')" id="psrch-${item.id}">🔍 Search</button>
+    <button class="btn btn-gold btn-sm" onclick="autoPolicy('${item.id}')" id="pauto-${item.id}">✨ Auto-Find</button>
+  </div><div id="pr-${item.id}">`;
 
-  return `
-    <div class="policy-search-bar">
-      <input type="text" id="policyQuery-${item.id}" placeholder="Search handbooks & policies (e.g. 'supervision', 'curriculum planning')…" onkeydown="if(event.key==='Enter')searchPolicies('${item.id}')">
-      <button class="btn btn-gold btn-sm" onclick="searchPolicies('${item.id}')" id="policySearchBtn-${item.id}">🔍 Search Policies</button>
-      <button class="btn btn-primary btn-sm" onclick="autoSearchPolicies('${item.id}')" id="autoSearchBtn-${item.id}">✨ Auto-Find</button>
+  if (!matches.length) {
+    html += `<div class="empty"><div class="ei">📄</div><p>No policy matches yet.<br>Click <strong>✨ Auto-Find</strong> to search your uploaded documents,<br>or type a search term above.</p></div>`;
+  } else {
+    if (accepted.length) {
+      html += `<div class="matches-section-hdr green">✅ Accepted (${accepted.length})</div>`;
+      accepted.forEach(m => { html += renderMatchCard(item.id, m, matches.indexOf(m)); });
+    }
+    if (pending.length) {
+      html += `<div class="matches-section-hdr muted">📋 Suggested — Review These (${pending.length})</div>`;
+      pending.forEach(m => { html += renderMatchCard(item.id, m, matches.indexOf(m)); });
+    }
+    if (dismissed.length) {
+      html += `<details style="margin-top:10px"><summary style="font-size:.78rem;color:var(--muted);cursor:pointer">Dismissed (${dismissed.length})</summary>`;
+      dismissed.forEach(m => { html += renderMatchCard(item.id, m, matches.indexOf(m)); });
+      html += `</details>`;
+    }
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderMatchCard(itemId, m, idx) {
+  const typeLabel = {staff_handbook:'Staff Handbook',family_handbook:'Family Handbook',policy:'Policy Doc',other:'Document'}[m.docType] || 'Document';
+  let actions = '';
+  if (m.status === 'accepted') {
+    actions = `<span class="badge green" style="font-size:.72rem">✓ In Use</span>
+      <button class="btn btn-outline btn-xs" onclick="setMatchStatus('${itemId}',${idx},'dismissed')">Remove</button>`;
+  } else if (m.status === 'dismissed') {
+    actions = `<button class="btn btn-outline btn-xs" onclick="setMatchStatus('${itemId}',${idx},'pending')">↩ Restore</button>`;
+  } else {
+    actions = `<button class="btn btn-green btn-xs" onclick="setMatchStatus('${itemId}',${idx},'accepted')">✓ Use This</button>
+      <button class="btn btn-red btn-xs" onclick="setMatchStatus('${itemId}',${idx},'dismissed')">✕ Dismiss</button>`;
+  }
+  return `<div class="match-card ${m.status || ''}">
+    <div class="match-top">
+      <span class="match-src">📖 ${m.docName} <span style="font-weight:400;opacity:.7">(${typeLabel})</span></span>
+      <span class="match-pg">Page ${m.page}</span>
     </div>
-    <div id="policyResults-${item.id}">
-      ${!matches.length ? '<div class="empty-state" style="padding:24px"><div class="icon">📄</div><p>No policy matches yet. Click <strong>Auto-Find</strong> to search your uploaded documents, or enter a search term above.</p></div>' : ''}
-      ${accepted.length ? `<p style="font-size:0.78rem;font-weight:600;color:var(--success);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px">Accepted (${accepted.length})</p>` + accepted.map((m,i) => renderMatch(m, matches.indexOf(m))).join('') : ''}
-      ${pending.length ? `<p style="font-size:0.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin:12px 0 8px">Suggested — Review These</p>` + pending.map((m,i) => renderMatch(m, matches.indexOf(m))).join('') : ''}
-      ${dismissed.length ? `<details style="margin-top:12px"><summary style="font-size:0.78rem;color:var(--text-muted);cursor:pointer">Dismissed (${dismissed.length})</summary>${dismissed.map((m,i) => renderMatch(m, matches.indexOf(m))).join('')}</details>` : ''}
+    <div class="match-excerpt">${m.excerpt}</div>
+    <div class="match-why">💡 ${m.relevance}</div>
+    <div class="match-actions">${actions}</div>
+  </div>`;
+}
+
+async function autoPolicy(itemId) {
+  await runPolicySearch(itemId, null);
+}
+async function searchPolicy(itemId) {
+  const q = document.getElementById('pq-' + itemId).value.trim();
+  await runPolicySearch(itemId, q);
+}
+
+async function runPolicySearch(itemId, searchQuery) {
+  const btnId = searchQuery ? 'psrch-' + itemId : 'pauto-' + itemId;
+  const btn = document.getElementById(btnId);
+  const orig = btn.innerHTML; btn.innerHTML = '<span class="spin dark"></span>'; btn.disabled = true;
+
+  const sec = framework.find(s => s.items.some(i => i.id === itemId));
+  const item = sec.items.find(i => i.id === itemId);
+  const locId = currentLocId || me.locationId;
+
+  try {
+    const r = await fetch('/api/ai/search-policies', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ itemText: item.title + ': ' + item.fullText, criteria: item.fullText, checklistItems: item.checklistItems, searchQuery, locationId: locId }) });
+    const data = await r.json();
+    if (data.message) { toast(data.message); btn.innerHTML = orig; btn.disabled = false; return; }
+
+    const resp = responsesCache[locId]?.[sec.id]?.[itemId] || {};
+    const existing = resp.policyMatches || [];
+    const newM = (data.matches || []).map(m => ({ ...m, status: 'pending' }));
+    const merged = [...existing];
+    newM.forEach(nm => {
+      const dup = merged.find(e => e.docName === nm.docName && e.page === nm.page);
+      if (!dup) merged.push(nm);
+    });
+
+    if (!responsesCache[locId]) responsesCache[locId] = {};
+    if (!responsesCache[locId][sec.id]) responsesCache[locId][sec.id] = {};
+    responsesCache[locId][sec.id][itemId] = { ...resp, policyMatches: merged };
+
+    const narrative = document.getElementById('narr-' + itemId)?.value || resp.narrative || '';
+    await fetch('/api/responses', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ sectionId: sec.id, itemId, narrative, policyMatches: merged, rating: resp.rating, locationId: locId }) });
+
+    document.getElementById('tab-' + itemId + '-policy').innerHTML = renderPolicy(item, { ...resp, policyMatches: merged });
+    toast(`Found ${newM.length} match${newM.length !== 1 ? 'es' : ''}`, newM.length ? 'ok' : '');
+  } catch(e) { toast('Search failed: ' + e.message, 'err'); }
+  btn.innerHTML = orig; btn.disabled = false;
+}
+
+async function setMatchStatus(itemId, idx, status) {
+  const sec = framework.find(s => s.items.some(i => i.id === itemId));
+  const item = sec.items.find(i => i.id === itemId);
+  const locId = currentLocId || me.locationId;
+  const resp = responsesCache[locId]?.[sec.id]?.[itemId] || {};
+  const matches = [...(resp.policyMatches || [])];
+  if (matches[idx]) matches[idx] = { ...matches[idx], status };
+  responsesCache[locId][sec.id][itemId] = { ...resp, policyMatches: matches };
+  const narrative = document.getElementById('narr-' + itemId)?.value || resp.narrative || '';
+  await fetch('/api/responses', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ sectionId: sec.id, itemId, narrative, policyMatches: matches, rating: resp.rating, locationId: locId }) });
+  document.getElementById('tab-' + itemId + '-policy').innerHTML = renderPolicy(item, { ...resp, policyMatches: matches });
+  refreshItemBadges(itemId, sec.id, locId);
+}
+
+// ─── FILES TAB ───────────────────────────────────────────────────────────────
+function renderFilesTab(item) {
+  return `<div id="evlist-${item.id}"><div style="text-align:center;padding:20px"><span class="spin dark"></span></div></div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
+      <input type="file" id="evf-${item.id}" style="display:none" multiple onchange="uploadEv('${item.id}',this)">
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('evf-${item.id}').click()">📎 Attach Files</button>
+      <span style="font-size:.78rem;color:var(--muted)">Photos, forms, documents, etc.</span>
     </div>`;
 }
 
-function renderEvidenceTab(item) {
-  return `<div id="evidenceList-${item.id}"><div class="empty-state" style="padding:20px"><div class="spinner dark"></div></div></div>
-    <div style="margin-top:12px; display:flex; gap:8px; align-items:center">
-      <input type="file" id="evFile-${item.id}" style="display:none" onchange="uploadEvidence('${item.id}', this)">
-      <button class="btn btn-outline btn-sm" onclick="document.getElementById('evFile-${item.id}').click()">📎 Attach File</button>
-      <span style="font-size:0.78rem; color:var(--text-muted)">Photos, documents, forms, etc.</span>
+async function loadEvidence(itemId) {
+  const sec = framework.find(s => s.items.some(i => i.id === itemId));
+  const locId = currentLocId || me.locationId;
+  const url = `/api/evidence/${sec.id}/${itemId}?locationId=${locId || ''}`;
+  const r = await fetch(url);
+  const ev = await r.json();
+  const c = document.getElementById('evlist-' + itemId);
+  if (!c) return;
+  if (!ev.length) { c.innerHTML = '<p style="font-size:.85rem;color:var(--muted)">No files attached yet.</p>'; return; }
+  c.innerHTML = '<div class="ev-list">' + ev.map(e => {
+    const icon = e.mimetype?.includes('image') ? '🖼️' : e.mimetype?.includes('pdf') ? '📕' : '📄';
+    return `<div class="ev-item">
+      <span class="ev-icon">${icon}</span>
+      <span class="ev-name">${e.label}</span>
+      <a class="ev-link" href="/uploads/${e.filename}" target="_blank">View</a>
+      <button class="btn btn-red btn-xs" onclick="deleteEv('${e._id}','${itemId}')">🗑️</button>
     </div>`;
+  }).join('') + '</div>';
 }
 
-function toggleItem(itemId, headerEl) {
-  const body = document.getElementById('itembody-' + itemId);
-  const isOpen = body.style.display !== 'none';
-  body.style.display = isOpen ? 'none' : 'block';
-  headerEl.classList.toggle('open', !isOpen);
-  if (!isOpen) loadEvidence(itemId);
+async function uploadEv(itemId, input) {
+  const sec = framework.find(s => s.items.some(i => i.id === itemId));
+  const locId = currentLocId || me.locationId;
+  for (const file of input.files) {
+    const fd = new FormData();
+    fd.append('file', file); fd.append('sectionId', sec.id); fd.append('itemId', itemId);
+    fd.append('label', file.name); if (locId) fd.append('locationId', locId);
+    await fetch('/api/evidence/upload', { method:'POST', body: fd });
+  }
+  toast('File(s) attached ✓', 'ok');
+  loadEvidence(itemId);
+  input.value = '';
+}
+
+async function deleteEv(id, itemId) {
+  if (!confirm('Remove this file?')) return;
+  await fetch('/api/evidence/' + id, { method:'DELETE' });
+  loadEvidence(itemId);
+}
+
+function toggleItem(itemId, hdr) {
+  const body = document.getElementById('ibody-' + itemId);
+  const open = body.style.display === 'block';
+  body.style.display = open ? 'none' : 'block';
+  hdr.classList.toggle('open', !open);
+  if (!open) loadEvidence(itemId);
 }
 
 function switchTab(itemId, tab, btn) {
   document.querySelectorAll(`[id^="tab-${itemId}-"]`).forEach(p => p.classList.remove('active'));
   document.getElementById(`tab-${itemId}-${tab}`).classList.add('active');
-  btn.closest('.item-tabs').querySelectorAll('.item-tab').forEach(b => b.classList.remove('active'));
+  btn.closest('.item-tabs').querySelectorAll('.itab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  if (tab === 'evidence') loadEvidence(itemId);
+  if (tab === 'files') loadEvidence(itemId);
 }
 
-// ═══════════════════════════════════════════════════════
-// NARRATIVE
-// ═══════════════════════════════════════════════════════
-async function saveNarrative(itemId) {
-  const narrative = document.getElementById('narrative-' + itemId).value;
-  const resp = (responsesCache[currentSectionId] || {})[itemId] || {};
-  const btn = document.getElementById('saveBtn-' + itemId);
-  btn.innerHTML = '<span class="spinner"></span>';
-  try {
-    await fetch('/api/responses', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ sectionId: currentSectionId, itemId, narrative, policyMatches: resp.policyMatches || [], rating: resp.rating, notes: resp.notes })
-    });
-    if (!responsesCache[currentSectionId]) responsesCache[currentSectionId] = {};
-    responsesCache[currentSectionId][itemId] = { ...resp, narrative };
-    toast('Response saved ✓', 'success');
-    btn.innerHTML = '💾 Save Response';
-    refreshItemHeader(itemId);
-    await loadSections(); // refresh progress
-  } catch (e) { btn.innerHTML = '💾 Save Response'; toast('Save failed', 'error'); }
-}
-
-function clearNarrative(itemId) {
-  document.getElementById('narrative-' + itemId).value = '';
-}
-
-function setRating(itemId, val, btn) {
-  btn.closest('.rating-row').querySelectorAll('.rating-btn').forEach(b => b.classList.remove('sel'));
-  btn.classList.add('sel');
-  const resp = (responsesCache[currentSectionId] || {})[itemId] || {};
-  if (!responsesCache[currentSectionId]) responsesCache[currentSectionId] = {};
-  responsesCache[currentSectionId][itemId] = { ...resp, rating: val };
-  // Auto-save rating
-  const narrative = document.getElementById('narrative-' + itemId)?.value || resp.narrative || '';
-  fetch('/api/responses', { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ sectionId: currentSectionId, itemId, narrative, policyMatches: resp.policyMatches || [], rating: val }) });
-}
-
-// ═══════════════════════════════════════════════════════
-// POLICY EVIDENCE
-// ═══════════════════════════════════════════════════════
-async function autoSearchPolicies(itemId) {
-  const item = currentSection.items.find(i => i.id === itemId);
-  await runPolicySearch(itemId, '', item);
-}
-
-async function searchPolicies(itemId) {
-  const q = document.getElementById('policyQuery-' + itemId).value.trim();
-  const item = currentSection.items.find(i => i.id === itemId);
-  await runPolicySearch(itemId, q, item);
-}
-
-async function runPolicySearch(itemId, searchQuery, item) {
-  const btn = document.getElementById(searchQuery ? 'policySearchBtn-' + itemId : 'autoSearchBtn-' + itemId);
-  const orig = btn.innerHTML;
-  btn.innerHTML = '<span class="spinner"></span> Searching…';
-  btn.disabled = true;
-
-  try {
-    const res = await fetch('/api/ai/search-policies', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ itemText: item.title, criteria: item.criteria, searchQuery })
-    });
-    const data = await res.json();
-
-    const resp = (responsesCache[currentSectionId] || {})[itemId] || {};
-    const existing = resp.policyMatches || [];
-
-    // Merge: add new ones that aren't duplicates
-    const newMatches = (data.matches || []).map(m => ({ ...m, status: 'pending' }));
-    const merged = [...existing];
-    newMatches.forEach(nm => {
-      const dup = merged.find(e => e.docName === nm.docName && e.page === nm.page && e.excerpt === nm.excerpt);
-      if (!dup) merged.push(nm);
-    });
-
-    if (!responsesCache[currentSectionId]) responsesCache[currentSectionId] = {};
-    responsesCache[currentSectionId][itemId] = { ...resp, policyMatches: merged };
-
-    // Save to DB
-    const narrative = document.getElementById('narrative-' + itemId)?.value || resp.narrative || '';
-    await fetch('/api/responses', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ sectionId: currentSectionId, itemId, narrative, policyMatches: merged, rating: resp.rating }) });
-
-    refreshPoliciesTab(itemId);
-    toast(`Found ${newMatches.length} policy match${newMatches.length!==1?'es':''}`, newMatches.length ? 'success' : '');
-  } catch (e) { toast('Search failed: ' + e.message, 'error'); }
-  btn.innerHTML = orig; btn.disabled = false;
-}
-
-async function acceptMatch(itemId, matchIndex) {
-  await updateMatchStatus(itemId, matchIndex, 'accepted');
-}
-async function dismissMatch(itemId, matchIndex) {
-  await updateMatchStatus(itemId, matchIndex, 'dismissed');
-}
-async function restoreMatch(itemId, matchIndex) {
-  await updateMatchStatus(itemId, matchIndex, 'pending');
-}
-
-async function updateMatchStatus(itemId, matchIndex, status) {
-  const resp = (responsesCache[currentSectionId] || {})[itemId] || {};
-  const matches = [...(resp.policyMatches || [])];
-  if (matches[matchIndex]) matches[matchIndex] = { ...matches[matchIndex], status };
-  if (!responsesCache[currentSectionId]) responsesCache[currentSectionId] = {};
-  responsesCache[currentSectionId][itemId] = { ...resp, policyMatches: matches };
-  const narrative = document.getElementById('narrative-' + itemId)?.value || resp.narrative || '';
-  await fetch('/api/responses', { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ sectionId: currentSectionId, itemId, narrative, policyMatches: matches, rating: resp.rating }) });
-  refreshPoliciesTab(itemId);
-  refreshItemHeader(itemId);
-}
-
-function refreshPoliciesTab(itemId) {
-  const item = currentSection.items.find(i => i.id === itemId);
-  const resp = (responsesCache[currentSectionId] || {})[itemId] || {};
-  document.getElementById('tab-' + itemId + '-policies').innerHTML = renderPoliciesTab(item, resp);
-}
-
-function refreshItemHeader(itemId) {
-  const idx = currentSection.items.findIndex(i => i.id === itemId);
-  const item = currentSection.items[idx];
-  const resp = (responsesCache[currentSectionId] || {})[itemId] || {};
+function refreshItemBadges(itemId, secId, locId) {
+  const resp = responsesCache[locId]?.[secId]?.[itemId] || {};
   const isDone = resp.narrative && resp.narrative.trim();
   const policyCount = (resp.policyMatches || []).filter(m => m.status === 'accepted').length;
-  const numEl = document.querySelector(`#itemcard-${itemId} .item-number`);
-  if (numEl) numEl.className = `item-number ${isDone ? 'done' : ''}`;
-  const tagsEl = document.querySelector(`#itemcard-${itemId} .item-title-block div:last-child`);
-  if (tagsEl) tagsEl.innerHTML = `
-    ${isDone ? '<span class="tag">✅ Response saved</span>' : ''}
-    ${policyCount ? `<span class="tag">📄 ${policyCount} policy ref${policyCount>1?'s':''}</span>` : ''}
-    ${resp.rating ? `<span class="tag">⭐ Self-rating: ${resp.rating}/5</span>` : ''}`;
+  const numEl = document.querySelector(`#ic-${itemId} .item-num`);
+  if (numEl) numEl.className = `item-num ${isDone ? 'done' : policyCount ? 'partial' : ''}`;
+  const rlabels = ['','Not yet','Beginning','Developing','Established','Exemplary'];
+  const badgeEl = document.getElementById('ib-' + itemId);
+  if (badgeEl) badgeEl.innerHTML = `
+    ${isDone ? '<span class="badge green">✅ Response saved</span>' : ''}
+    ${policyCount ? `<span class="badge gold">📄 ${policyCount} policy ref${policyCount>1?'s':''}</span>` : ''}
+    ${resp.rating ? `<span class="badge">⭐ ${rlabels[resp.rating]}</span>` : ''}`;
 }
 
-// ═══════════════════════════════════════════════════════
-// FILE EVIDENCE
-// ═══════════════════════════════════════════════════════
-async function loadEvidence(itemId) {
-  const container = document.getElementById('evidenceList-' + itemId);
-  if (!container) return;
-  const res = await fetch(`/api/evidence/${currentSectionId}/${itemId}`);
-  const evidence = await res.json();
-  if (!evidence.length) { container.innerHTML = '<p style="font-size:0.85rem;color:var(--text-muted)">No files attached yet.</p>'; return; }
-  container.innerHTML = '<div class="evidence-list">' + evidence.map(ev => {
-    const icon = ev.mimetype?.includes('image') ? '🖼️' : ev.mimetype?.includes('pdf') ? '📕' : '📄';
-    return `<div class="evidence-item">
-      <span class="evidence-icon">${icon}</span>
-      <span class="evidence-name">${ev.label || ev.originalName}</span>
-      <a class="evidence-link" href="/uploads/${ev.filename}" target="_blank">View</a>
-      <button class="btn btn-danger btn-icon btn-sm" onclick="deleteEvidence('${ev._id}', '${itemId}')">🗑️</button>
-    </div>`;
-  }).join('') + '</div>';
-}
-
-async function uploadEvidence(itemId, input) {
-  const file = input.files[0]; if (!file) return;
-  const fd = new FormData();
-  fd.append('file', file);
-  fd.append('sectionId', currentSectionId);
-  fd.append('itemId', itemId);
-  fd.append('label', file.name);
-  const res = await fetch('/api/evidence/upload', { method: 'POST', body: fd });
-  if (res.ok) { toast('File attached ✓', 'success'); loadEvidence(itemId); }
-  else toast('Upload failed', 'error');
-  input.value = '';
-}
-
-async function deleteEvidence(id, itemId) {
-  if (!confirm('Remove this file?')) return;
-  await fetch('/api/evidence/' + id, { method: 'DELETE' });
-  loadEvidence(itemId);
-}
-
-// ═══════════════════════════════════════════════════════
-// SECTION MODAL
-// ═══════════════════════════════════════════════════════
-function openSectionModal(section) {
-  editingSectionId = section ? section._id : null;
-  document.getElementById('modalTitle').textContent = section ? 'Edit Section' : 'Add GSQ Section';
-  document.getElementById('mSectionName').value = section ? section.name : '';
-  document.getElementById('mSectionDesc').value = section ? (section.description || '') : '';
-  const editor = document.getElementById('itemsEditor');
-  editor.innerHTML = '';
-  if (section && section.items) section.items.forEach(item => addItemRow(item));
-  document.getElementById('sectionModal').classList.add('open');
-}
-
-function closeSectionModal() {
-  document.getElementById('sectionModal').classList.remove('open');
-  editingSectionId = null;
-}
-
-function addItemRow(item) {
-  const id = item ? item.id : 'item_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-  const div = document.createElement('div');
-  div.className = 'item-row';
-  div.dataset.itemId = id;
-  div.innerHTML = `
-    <div class="item-row-top">
-      <input type="text" class="item-title-input" placeholder="Item / question title" value="${item ? item.title.replace(/"/g,'&quot;') : ''}">
-      <button class="btn btn-danger btn-icon" onclick="this.closest('.item-row').remove()" style="flex-shrink:0">🗑️</button>
-    </div>
-    <textarea class="item-criteria-input" placeholder="What evaluators look for / criteria (optional)">${item ? (item.criteria || '') : ''}</textarea>`;
-  document.getElementById('itemsEditor').appendChild(div);
-}
-
-async function saveSection() {
-  const name = document.getElementById('mSectionName').value.trim();
-  if (!name) { toast('Section name required', 'error'); return; }
-  const rows = document.querySelectorAll('#itemsEditor .item-row');
-  const items = Array.from(rows).map(row => ({
-    id: row.dataset.itemId,
-    title: row.querySelector('.item-title-input').value.trim(),
-    criteria: row.querySelector('.item-criteria-input').value.trim()
-  })).filter(i => i.title);
-
-  const payload = { name, description: document.getElementById('mSectionDesc').value.trim(), items };
-  if (editingSectionId) payload._id = editingSectionId;
-
-  await fetch('/api/sections', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-  closeSectionModal();
-  await loadSections();
-  if (editingSectionId && currentSectionId === editingSectionId) {
-    currentSection = sections.find(s => s._id === editingSectionId);
-    loadSectionEditor();
-  }
-  toast('Section saved ✓', 'success');
-}
-
-function editCurrentSection() {
-  openSectionModal(currentSection);
-}
-
-async function deleteCurrentSection() {
-  if (!confirm('Delete this section and all its responses?')) return;
-  await fetch('/api/sections/' + currentSectionId, { method: 'DELETE' });
-  currentSectionId = null; currentSection = null;
-  document.getElementById('noSectionSelected').style.display = 'block';
-  document.getElementById('sectionEditorWrap').style.display = 'none';
-  await loadSections();
-  toast('Section deleted');
-}
-
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // DOCUMENTS
-// ═══════════════════════════════════════════════════════
-async function loadDocuments() {
-  const res = await fetch('/api/documents');
-  documents = await res.json();
-}
+// ═══════════════════════════════════════════
+async function renderDocsView() {
+  // Always fetch ALL documents when admin so we can group by location
+  const r = await fetch('/api/documents/all');
+  const allDocs = await r.json();
+  documents = allDocs; // keep global updated
 
-function renderDocList() {
-  const container = document.getElementById('docList');
-  if (!documents.length) { container.innerHTML = '<div class="empty-state"><div class="icon">📚</div><p>No documents uploaded yet.</p></div>'; return; }
-  const typeLabel = {staff_handbook:'Staff Handbook', family_handbook:'Family Handbook', policy:'Policy Doc', other:'Other'};
-  container.innerHTML = documents.map(d => `
-    <div class="doc-item">
-      <span style="font-size:1.5rem">${d.mimetype?.includes('pdf') ? '📕' : '📘'}</span>
-      <div style="flex:1">
-        <div class="doc-item-name">${d.docName}</div>
-        <div class="doc-item-pages">${d.pageCount || 0} pages indexed · ${new Date(d.createdAt).toLocaleDateString()}</div>
+  const typeLabel = {staff_handbook:'Staff Handbook',family_handbook:'Family Handbook',policy:'Policy Doc',other:'Other'};
+
+  // Build location scope options for the upload form
+  let scopeOptions = `<option value="shared">🌐 All locations (shared)</option>`;
+  locations.forEach(l => { scopeOptions += `<option value="${l._id}">${l.name} only</option>`; });
+
+  let html = `<div class="docs-view">
+    <h2>Handbooks & Policy Documents</h2>
+    <p style="color:var(--muted);margin-bottom:20px">
+      Upload handbooks and policy documents for each center. Documents marked <strong>Shared</strong> are available to all locations when searching for policy evidence.
+      Center-specific documents (like the Montessori handbook) only appear for that center.
+    </p>
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('docFile').click()">
+      <div class="dz-icon">📄</div>
+      <p><strong>Click to upload</strong> or drag & drop a PDF or Word document</p>
+      <p style="font-size:.8rem;margin-top:4px;color:var(--muted)">PDF and .docx files supported · Max 50MB</p>
+      <input type="file" id="docFile" accept=".pdf,.doc,.docx" onchange="handleDocSelect(event)" style="display:none">
+    </div>
+    <div class="doc-form" id="docForm">
+      <div class="form-row">
+        <div class="fg"><label>Document Name</label><input type="text" id="dn" placeholder="e.g. Montessori Family Handbook 2024–2025"></div>
+        <div class="fg"><label>Document Type</label><select id="dt"><option value="staff_handbook">Staff Handbook</option><option value="family_handbook">Family Handbook</option><option value="policy">Policy Document</option><option value="other">Other</option></select></div>
       </div>
-      <span class="doc-type-badge">${typeLabel[d.docType] || 'Document'}</span>
-      <button class="btn btn-danger btn-sm" onclick="deleteDocument('${d._id}')">🗑️ Remove</button>
-    </div>`).join('');
+      <div class="form-row">
+        <div class="fg">
+          <label>Belongs To</label>
+          <select id="docScope">${scopeOptions}</select>
+          <span style="font-size:.75rem;color:var(--muted);margin-top:3px;display:block">Choose which center(s) this document applies to</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+        <button class="btn btn-outline" onclick="cancelDoc()">Cancel</button>
+        <button class="btn btn-navy" id="uploadDocBtn" onclick="confirmDoc()">📤 Upload & Index Document</button>
+      </div>
+    </div>`;
+
+  // Group documents: shared first, then by location
+  const sharedDocs = allDocs.filter(d => d.shared);
+  const groups = [
+    { label: '🌐 Shared — Available to All Locations', docs: sharedDocs, key: 'shared' },
+    ...locations.map(l => ({
+      label: `🏫 ${l.name} Only`,
+      docs: allDocs.filter(d => !d.shared && d.locationId === l._id),
+      key: l._id,
+      locId: l._id
+    }))
+  ];
+
+  groups.forEach(group => {
+    if (!group.docs.length) return;
+    html += `<div style="margin-bottom:22px">
+      <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:10px">${group.label}</div>
+      <div class="doc-list">`;
+    group.docs.forEach(d => {
+      const scopeLabel = d.shared ? '<span class="doc-badge shared">🌐 Shared</span>'
+        : `<span class="doc-badge">${typeLabel[d.docType] || 'Document'}</span>`;
+      html += `<div class="doc-item">
+        <span style="font-size:1.4rem">${d.mimetype?.includes('pdf') ? '📕' : '📘'}</span>
+        <div style="flex:1">
+          <div class="doc-name">${d.docName}</div>
+          <div class="doc-meta">${typeLabel[d.docType] || 'Document'} · ${d.pageCount || 0} pages indexed · ${new Date(d.createdAt).toLocaleDateString()}</div>
+        </div>
+        ${scopeLabel}
+        <button class="btn btn-red btn-sm" onclick="deleteDoc('${d._id}')">🗑️</button>
+      </div>`;
+    });
+    html += '</div></div>';
+  });
+
+  // Show empty state if truly nothing
+  if (!allDocs.length) {
+    html += `<div class="empty"><div class="ei">📚</div><p>No documents uploaded yet.<br>Upload your first handbook or policy document above.</p></div>`;
+  }
+
+  html += '</div>';
+  document.getElementById('docsContent').innerHTML = html;
+
+  // drag-drop
+  const dz = document.getElementById('dropZone');
+  if (dz) {
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+    dz.addEventListener('drop', e => {
+      e.preventDefault(); dz.classList.remove('drag');
+      const f = e.dataTransfer.files[0];
+      if (f) { _pendingDocFile = f; document.getElementById('dn').value = f.name.replace(/\.[^/.]+$/,''); document.getElementById('docForm').classList.add('show'); }
+    });
+  }
 }
 
-function handleDocFileSelect(event) {
-  const file = event.target.files[0]; if (!file) return;
-  pendingDocFile = file;
-  document.getElementById('docName').value = file.name.replace(/\.[^/.]+$/, '');
+let _pendingDocFile = null;
+function handleDocSelect(e) {
+  _pendingDocFile = e.target.files[0];
+  if (!_pendingDocFile) return;
+  document.getElementById('dn').value = _pendingDocFile.name.replace(/\.[^/.]+$/,'');
   document.getElementById('docForm').classList.add('show');
 }
-
-async function confirmDocUpload() {
-  if (!pendingDocFile) return;
-  const btn = document.getElementById('confirmUploadBtn');
-  btn.innerHTML = '<span class="spinner"></span> Indexing…';
-  btn.disabled = true;
-  const fd = new FormData();
-  fd.append('file', pendingDocFile);
-  fd.append('docName', document.getElementById('docName').value.trim() || pendingDocFile.name);
-  fd.append('docType', document.getElementById('docType').value);
-  try {
-    const res = await fetch('/api/documents/upload', { method: 'POST', body: fd });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    toast(`Document indexed: ${data.pageCount} pages ✓`, 'success');
-    cancelDocUpload();
-    await loadDocuments();
-    renderDocList();
-  } catch (e) { toast('Upload failed: ' + e.message, 'error'); }
-  btn.innerHTML = 'Upload & Index Document'; btn.disabled = false;
-}
-
-function cancelDocUpload() {
-  pendingDocFile = null;
+function cancelDoc() {
+  _pendingDocFile = null;
+  document.getElementById('docFile').value = '';
   document.getElementById('docForm').classList.remove('show');
-  document.getElementById('docFileInput').value = '';
 }
-
-async function deleteDocument(id) {
-  if (!confirm('Remove this document? Policy matches that referenced it will still be saved.')) return;
-  await fetch('/api/documents/' + id, { method: 'DELETE' });
-  await loadDocuments();
-  renderDocList();
+async function confirmDoc() {
+  if (!_pendingDocFile) return;
+  const btn = document.getElementById('uploadDocBtn');
+  btn.innerHTML = '<span class="spin"></span> Indexing…'; btn.disabled = true;
+  const scope = document.getElementById('docScope').value;
+  const fd = new FormData();
+  fd.append('file', _pendingDocFile);
+  fd.append('docName', document.getElementById('dn').value.trim() || _pendingDocFile.name);
+  fd.append('docType', document.getElementById('dt').value);
+  fd.append('shared', scope === 'shared' ? 'true' : 'false');
+  if (scope !== 'shared') fd.append('locationId', scope);
+  try {
+    const r = await fetch('/api/documents/upload', { method:'POST', body: fd });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    const scopeName = scope === 'shared' ? 'all locations' : locations.find(l => l._id === scope)?.name || scope;
+    toast(`Indexed: ${d.pageCount} pages · assigned to ${scopeName} ✓`, 'ok');
+    cancelDoc();
+    renderDocsView();
+  } catch(e) { toast('Upload failed: ' + e.message, 'err'); }
+  btn.innerHTML = '📤 Upload & Index Document'; btn.disabled = false;
+}
+async function deleteDoc(id) {
+  if (!confirm('Remove this document? This cannot be undone.')) return;
+  await fetch('/api/documents/' + id, { method:'DELETE' });
   toast('Document removed');
+  renderDocsView();
 }
 
-// Drag-drop on upload zone
-const uploadZone = document.getElementById('uploadZone');
-uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
-uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
-uploadZone.addEventListener('drop', e => {
-  e.preventDefault(); uploadZone.classList.remove('drag');
-  const file = e.dataTransfer.files[0];
-  if (file) { pendingDocFile = file; document.getElementById('docName').value = file.name.replace(/\.[^/.]+$/, ''); document.getElementById('docForm').classList.add('show'); }
-});
+// ═══════════════════════════════════════════
+// ADMIN
+// ═══════════════════════════════════════════
+async function renderAdminView() {
+  const [usersRes] = await Promise.all([fetch('/api/users')]);
+  const users = await usersRes.json();
+  const roleLabel = { admin: '👑 Admin', director: '🏫 Director' };
+  const locName = id => locations.find(l => l._id === id)?.name || '—';
 
-// ═══════════════════════════════════════════════════════
-// DASHBOARD
-// ═══════════════════════════════════════════════════════
-async function renderDashboard() {
-  const pres = await fetch('/api/progress');
-  const prog = await pres.json();
-  const totalSections = prog.length;
-  const totalItems = prog.reduce((a, s) => a + s.totalItems, 0);
-  const totalDone = prog.reduce((a, s) => a + s.completed, 0);
-  const overallPct = totalItems ? Math.round(totalDone / totalItems * 100) : 0;
-
-  document.getElementById('statsRow').innerHTML = `
-    <div class="stat-card"><div class="val">${totalSections}</div><div class="lbl">Sections</div></div>
-    <div class="stat-card"><div class="val">${totalItems}</div><div class="lbl">Total Items</div></div>
-    <div class="stat-card"><div class="val">${totalDone}</div><div class="lbl">Responses Written</div></div>
-    <div class="stat-card"><div class="val">${overallPct}%</div><div class="lbl">Overall Complete</div></div>
-    <div class="stat-card"><div class="val">${documents.length}</div><div class="lbl">Docs Indexed</div></div>`;
-
-  if (!prog.length) {
-    document.getElementById('dashEmptyState').style.display = 'block';
-    document.getElementById('sectionCards').innerHTML = '';
-    return;
-  }
-  document.getElementById('dashEmptyState').style.display = 'none';
-  document.getElementById('sectionCards').innerHTML = prog.map(s => {
-    const pct = s.totalItems ? Math.round(s.completed / s.totalItems * 100) : 0;
-    return `<div class="section-card" onclick="goToSection('${s._id}')">
-      <h3>${s.name}</h3>
-      <div class="big-bar"><div class="big-fill" style="width:${pct}%"></div></div>
-      <div class="pct">${s.completed} of ${s.totalItems} items complete · ${pct}%</div>
-    </div>`;
-  }).join('');
+  let html = `<div class="admin-view"><h2>Admin Panel</h2>
+    <div class="admin-section">
+      <h3>User Accounts</h3>
+      ${users.map(u => `<div class="user-row">
+        <div>
+          <div class="user-name">${u.name} <span style="font-size:.75rem;color:var(--muted)">(${u.username})</span></div>
+          <div class="user-meta">${roleLabel[u.role] || u.role} ${u.locationId ? '· ' + locName(u.locationId) : ''}</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="editUser('${u._id}','${u.username}','${u.name}','${u.role}','${u.locationId||''}')">✏️ Edit</button>
+        ${u.username !== 'admin' ? `<button class="btn btn-red btn-sm" onclick="deleteUser('${u._id}')">🗑️</button>` : ''}
+      </div>`).join('')}
+      <div style="margin-top:14px">
+        <button class="btn btn-navy btn-sm" onclick="newUser()">+ Add User</button>
+      </div>
+    </div>
+    <div class="admin-section">
+      <h3>Locations</h3>
+      ${locations.map(l => `<div class="user-row">
+        <div><div class="user-name">${l.name}</div><div class="user-meta">${l.address || ''}</div></div>
+      </div>`).join('')}
+    </div>
+    <div class="admin-section">
+      <h3>Default Credentials</h3>
+      <p style="font-size:.85rem;color:var(--muted);line-height:1.7">
+        Admin login: <code>admin</code> / set via <code>ADMIN_PASSWORD</code> env var (default: <code>tcc2024admin</code>)<br>
+        Director logins: <code>niles</code>, <code>peace</code>, <code>montessori</code> / set via <code>DIR_PASSWORD</code> env var (default: <code>director2024</code>)<br>
+        <strong style="color:var(--red)">Change all passwords immediately after first login!</strong>
+      </p>
+    </div>
+  </div>`;
+  document.getElementById('adminContent').innerHTML = html;
 }
 
-function goToSection(id) {
-  // Switch to sections view, select section
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('view-sections').classList.add('active');
-  document.querySelectorAll('.nav-btn')[1].classList.add('active');
-  document.getElementById('sidebar').style.display = 'flex';
-  selectSection(id);
+function newUser() {
+  openModal('Add User', `
+    <div class="form-row"><div class="fg"><label>Name</label><input id="mu-name" type="text" placeholder="Full name"></div><div class="fg"><label>Username</label><input id="mu-user" type="text" placeholder="username"></div></div>
+    <div class="form-row"><div class="fg"><label>Password</label><input id="mu-pass" type="password" placeholder="Password"></div><div class="fg"><label>Role</label><select id="mu-role"><option value="director">Director</option><option value="admin">Admin</option></select></div></div>
+    <div class="fg"><label>Location (for directors)</label><select id="mu-loc"><option value="">— None —</option>${locations.map(l=>`<option value="${l._id}">${l.name}</option>`).join('')}</select></div>`,
+    [{label:'Save', cls:'btn-navy', fn: async () => {
+      await fetch('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        username:document.getElementById('mu-user').value,password:document.getElementById('mu-pass').value,
+        name:document.getElementById('mu-name').value,role:document.getElementById('mu-role').value,
+        locationId:document.getElementById('mu-loc').value||null
+      })});
+      closeModal(); renderAdminView(); toast('User created ✓','ok');
+    }}]
+  );
 }
 
-// ═══════════════════════════════════════════════════════
+function editUser(id, username, name, role, locId) {
+  openModal('Edit User', `
+    <div class="form-row"><div class="fg"><label>Name</label><input id="eu-name" type="text" value="${name}"></div><div class="fg"><label>Role</label><select id="eu-role"><option value="director" ${role==='director'?'selected':''}>Director</option><option value="admin" ${role==='admin'?'selected':''}>Admin</option></select></div></div>
+    <div class="fg" style="margin-bottom:12px"><label>Location</label><select id="eu-loc"><option value="">— None —</option>${locations.map(l=>`<option value="${l._id}" ${l._id===locId?'selected':''}>${l.name}</option>`).join('')}</select></div>
+    <div class="fg"><label>New Password (leave blank to keep)</label><input id="eu-pass" type="password" placeholder="New password"></div>`,
+    [{label:'Save', cls:'btn-navy', fn: async () => {
+      const payload = {_id:id,name:document.getElementById('eu-name').value,role:document.getElementById('eu-role').value,locationId:document.getElementById('eu-loc').value||null};
+      const p = document.getElementById('eu-pass').value; if (p) payload.password = p;
+      await fetch('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      closeModal(); renderAdminView(); toast('User updated ✓','ok');
+    }}]
+  );
+}
+
+async function deleteUser(id) {
+  if (!confirm('Delete this user?')) return;
+  await fetch('/api/users/' + id, { method:'DELETE' });
+  renderAdminView(); toast('User deleted');
+}
+
+// ═══════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════
+function renderSettingsView() {
+  document.getElementById('settingsContent').innerHTML = `<div class="settings-view">
+    <h2>Account Settings</h2>
+    <div class="settings-card">
+      <h3 style="font-size:.95rem;font-weight:700;color:var(--navy);margin-bottom:14px">Change Password</h3>
+      <div class="field" style="margin-bottom:12px"><label style="font-size:.78rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px">Current Password</label><input type="password" id="cp1" style="border:1.5px solid var(--border);border-radius:6px;padding:8px 12px;font-family:inherit;font-size:.9rem;width:100%"></div>
+      <div class="field" style="margin-bottom:12px"><label style="font-size:.78rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px">New Password</label><input type="password" id="cp2" style="border:1.5px solid var(--border);border-radius:6px;padding:8px 12px;font-family:inherit;font-size:.9rem;width:100%"></div>
+      <div class="field" style="margin-bottom:16px"><label style="font-size:.78rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px">Confirm New Password</label><input type="password" id="cp3" style="border:1.5px solid var(--border);border-radius:6px;padding:8px 12px;font-family:inherit;font-size:.9rem;width:100%"></div>
+      <button class="btn btn-navy" onclick="changePass()">Update Password</button>
+      <div id="cpMsg" style="margin-top:10px;font-size:.85rem"></div>
+    </div>
+  </div>`;
+}
+
+async function changePass() {
+  const c = document.getElementById('cp1').value;
+  const n = document.getElementById('cp2').value;
+  const n2 = document.getElementById('cp3').value;
+  const msg = document.getElementById('cpMsg');
+  if (n !== n2) { msg.textContent = '❌ New passwords do not match'; msg.style.color = 'var(--red)'; return; }
+  if (n.length < 6) { msg.textContent = '❌ Password must be at least 6 characters'; msg.style.color = 'var(--red)'; return; }
+  const r = await fetch('/api/auth/change-password', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({currentPassword:c,newPassword:n}) });
+  const d = await r.json();
+  if (r.ok) { msg.textContent = '✅ Password updated successfully'; msg.style.color = 'var(--green)'; document.getElementById('cp1').value=''; document.getElementById('cp2').value=''; document.getElementById('cp3').value=''; }
+  else { msg.textContent = '❌ ' + d.error; msg.style.color = 'var(--red)'; }
+}
+
+// ═══════════════════════════════════════════
+// MODAL HELPER
+// ═══════════════════════════════════════════
+function openModal(title, body, actions) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = body;
+  document.getElementById('modalFoot').innerHTML = `<button class="btn btn-outline" onclick="closeModal()">Cancel</button>` +
+    (actions||[]).map(a => `<button class="btn ${a.cls}" onclick="(${a.fn.toString()})()">${a.label}</button>`).join('');
+  document.getElementById('genericModal').classList.add('open');
+}
+function closeModal() { document.getElementById('genericModal').classList.remove('open'); }
+
+// ═══════════════════════════════════════════
 // TOAST
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 function toast(msg, type) {
   const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = 'toast show' + (type ? ' ' + type : '');
-  clearTimeout(el._timer);
-  el._timer = setTimeout(() => el.classList.remove('show'), 3000);
+  el.textContent = msg; el.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 3000);
 }
 
-// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // BOOT
-// ═══════════════════════════════════════════════════════
-init();
+// ═══════════════════════════════════════════
+(async () => {
+  const auth = await checkAuth();
+  if (auth.loggedIn) {
+    me = { role: auth.role, locationId: auth.locationId };
+    const meRes = await fetch('/api/auth/me');
+    // get name
+    me.name = auth.role === 'admin' ? 'Admin' : auth.locationId;
+    await initApp();
+  }
+})();
 </script>
 </body>
 </html>
