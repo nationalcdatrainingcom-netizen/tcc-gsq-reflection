@@ -290,6 +290,28 @@ textarea.narr:focus{outline:none;border-color:var(--gold);background:white}
 .rpt-sum-num { font-size:1.8rem; font-weight:800; line-height:1; margin-bottom:.25rem; }
 .rpt-sum-lbl { font-size:.75rem; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
 .rpt-print-btn { float:right; }
+/* ── ASSIGNMENTS ── */
+.assign-badge{display:inline-flex;align-items:center;gap:3px;font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.assign-badge.pending{background:#e0e7ff;color:#3730a3}
+.assign-badge.in-progress{background:#fef3c7;color:#92400e}
+.assign-badge.completed{background:var(--green-bg);color:var(--green)}
+.asgn-card{background:white;border:1.5px solid var(--border);border-radius:12px;padding:1rem 1.25rem;margin-bottom:.75rem;transition:all .2s}
+.asgn-card.pending{border-left:4px solid #6366f1}
+.asgn-card.in-progress{border-left:4px solid #f59e0b}
+.asgn-card.completed{border-left:4px solid var(--green);background:var(--green-bg)}
+.asgn-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.5rem}
+.asgn-card-title{font-weight:700;font-size:.9rem;color:var(--navy);line-height:1.4}
+.asgn-card-indicator{font-size:.72rem;font-weight:800;background:var(--navy);color:white;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.asgn-card-meta{font-size:.78rem;color:var(--muted);margin-bottom:.5rem}
+.asgn-card-notes{font-size:.82rem;color:var(--muted);font-style:italic;padding:6px 0;border-top:1px solid var(--border);margin-top:6px}
+.asgn-card-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem}
+.asgn-stats{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1.5rem}
+.asgn-stat{flex:1;min-width:120px;background:white;border:1.5px solid var(--border);border-radius:12px;padding:.9rem 1.1rem;text-align:center}
+.asgn-stat-num{font-size:1.8rem;font-weight:800;line-height:1;margin-bottom:.25rem}
+.asgn-stat-lbl{font-size:.75rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.assign-modal-item{display:flex;align-items:center;gap:.75rem;padding:.5rem .75rem;background:var(--cream);border-radius:8px;margin-bottom:.5rem;font-size:.85rem}
+.assign-modal-item input[type="checkbox"]{width:16px;height:16px;accent-color:var(--gold)}
+
 @media print {
   .topbar, .sidebar, nav, .nav-tabs, #toast, .rpt-print-btn { display:none !important; }
   .view { display:block !important; }
@@ -327,6 +349,7 @@ textarea.narr:focus{outline:none;border-color:var(--gold);background:white}
       <button class="nav-tab" onclick="showView('documents',this)">📁 Documents</button>
       <button class="nav-tab" onclick="showView('evidence',this)">📎 Evidence Tracker</button>
       <button class="nav-tab" onclick="showView('report',this)">📊 Readiness Report</button>
+      <button class="nav-tab" onclick="showView('assignments',this)" id="navAssignments">📋 My Assignments</button>
       <button class="nav-tab admin-only" onclick="showView('admin',this)" style="display:none">⚙️ Admin</button>
     </nav>
     <div class="user-pill" id="userPill">
@@ -349,6 +372,7 @@ textarea.narr:focus{outline:none;border-color:var(--gold);background:white}
       <div class="view" id="view-documents"><div id="docsContent"></div></div>
       <div class="view" id="view-evidence"><div id="evidenceContent"></div></div>
       <div class="view" id="view-report"><div id="reportContent" style="padding:1.5rem 2rem"></div></div>
+      <div class="view" id="view-assignments"><div id="assignmentsContent" style="padding:1.5rem 2rem"></div></div>
       <div class="view admin-only" id="view-admin" style="display:none"><div id="adminContent"></div></div>
       <div class="view" id="view-settings"><div id="settingsContent"></div></div>
     </main>
@@ -377,6 +401,7 @@ let currentSectionId = null;
 let progress = {};
 let responsesCache = {};
 let documents = [];
+let allAssignments = [];
 
 // ═══════════════════════════════════════════
 // AUTH
@@ -431,11 +456,24 @@ async function initApp() {
 
   renderLocSwitcher();
   await loadProgress();
+  await loadAssignments();
   renderDashboard();
   renderSidebar();
   renderDocsView();
   if (me.role === 'admin') renderAdminView();
   renderSettingsView();
+
+  // Show/hide assignments tab based on role
+  const navAsgn = document.getElementById('navAssignments');
+  if (navAsgn) {
+    // Show for everyone - admin sees all assignments, directors see their own
+    navAsgn.style.display = '';
+    if (me.role !== 'admin') {
+      navAsgn.textContent = '📋 My Assignments';
+    } else {
+      navAsgn.textContent = '📋 Assignments';
+    }
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -451,6 +489,7 @@ function showView(name, btn) {
   if (name === 'documents') renderDocsView();
   if (name === 'evidence') renderEvidenceTracker();
   if (name === 'report') renderReadinessReport();
+  if (name === 'assignments') renderAssignmentsView();
   if (name === 'admin' && me.role === 'admin') renderAdminView();
 }
 
@@ -1254,6 +1293,9 @@ async function renderEvidenceTracker() {
   const wrap = document.getElementById('evidenceContent');
   wrap.innerHTML = '<div style="padding:2rem;text-align:center"><span class="spin dark"></span></div>';
 
+  // Load both tracker items and assignments
+  await loadAssignments();
+
   const url = locId ? `/api/tracker?locationId=${locId}` : '/api/tracker';
   const r = await fetch(url);
   const trackerItems = await r.json();
@@ -1299,13 +1341,19 @@ async function renderEvidenceTracker() {
       const statusIcons = { 'uploaded':'✅', 'done':'✅', 'todo':'📋', 'not-started':'○' };
       const encodedLabel = encodeURIComponent(evLabel);
 
+      // Check if this item has an assignment
+      const assignment = getAssignmentForItem(item.id, section.id, evLabel, locId || '');
+      const assignBadge = assignment
+        ? `<span class="assign-badge ${assignment.status}">👤 ${assignment.assignedToName} · ${assignment.status}</span>`
+        : '';
+
       html += `<div class="et-item" data-status="${status}" data-key="${key}">
         <div class="et-item-top">
           <div class="et-item-info">
             <span class="et-indicator-badge">${item.id}</span>
             <div>
               <div class="et-item-title">${evLabel}</div>
-              <div class="et-item-sub">${item.title.replace(/^[A-Z0-9]+ – /,'')}</div>
+              <div class="et-item-sub">${item.title.replace(/^[A-Z0-9]+ – /,'')}${assignBadge ? ' ' + assignBadge : ''}</div>
             </div>
           </div>
           <div class="et-item-actions">
@@ -1317,6 +1365,7 @@ async function renderEvidenceTracker() {
             ${status !== 'todo'
               ? `<button class="btn btn-sm btn-outline" onclick="markTrackerTodo('${item.id}','${section.id}','${encodedLabel}','${locId||''}',this)" title="Add to to-do list">📋 To-Do</button>`
               : `<button class="btn btn-sm btn-outline" style="color:var(--red)" onclick="removeTrackerItem('${tracked._id}',this)" title="Remove from to-do list">✕ Remove</button>`}
+            ${me.role === 'admin' ? `<button class="btn btn-sm btn-outline" style="color:#6366f1" data-itemid="${item.id}" data-sectionid="${section.id}" data-label="${evLabel}" data-locid="${locId||''}" onclick="openAssignModalFixed(this)" title="Assign to director">👤 Assign</button>` : ''}
             ${tracked ? `<button class="btn btn-sm btn-outline" style="color:var(--red)" onclick="deleteTrackerItem('${tracked._id}',this)">🗑</button>` : ''}
           </div>
         </div>
@@ -1581,6 +1630,270 @@ async function renderReadinessReport() {
   });
 
   wrap.innerHTML = html;
+}
+// ═══════════════════════════════════════════
+// ASSIGNMENTS (Director Delegation)
+// ═══════════════════════════════════════════
+
+async function loadAssignments() {
+  try {
+    const locParam = (me.role === 'admin' && currentLocId) ? `?locationId=${currentLocId}` : '';
+    const r = await fetch('/api/assignments' + locParam);
+    allAssignments = await r.json();
+  } catch(e) { allAssignments = []; }
+}
+
+function getAssignmentForItem(itemId, sectionId, evidenceLabel, locationId) {
+  return allAssignments.find(a =>
+    a.itemId === itemId && a.sectionId === sectionId &&
+    a.evidenceLabel === evidenceLabel && a.locationId === locationId
+  );
+}
+
+// Admin: open modal to assign evidence item to a director
+async function openAssignModal(itemId, sectionId, encodedLabel, locId) {
+  const evidenceLabel = decodeURIComponent(encodedLabel);
+  const usersRes = await fetch('/api/users');
+  const users = await usersRes.json();
+  // Filter to directors at this location
+  const directors = users.filter(u => u.role === 'director' && u.locationId === locId);
+  const existing = getAssignmentForItem(itemId, sectionId, evidenceLabel, locId);
+
+  let body = `<p style="margin:0 0 1rem;font-size:.88rem;color:var(--muted)"><strong>${itemId}:</strong> ${evidenceLabel}</p>`;
+
+  if (!directors.length) {
+    body += `<p style="color:var(--red)">No directors found for this location. Add a director in the Admin panel first.</p>`;
+  } else {
+    body += `<div class="fg" style="margin-bottom:12px"><label>Assign To</label><select id="assignTo" style="width:100%;padding:.5rem;border:1.5px solid var(--border);border-radius:8px;font-size:.88rem">`;
+    directors.forEach(d => {
+      body += `<option value="${d._id}" ${existing && existing.assignedTo === d._id ? 'selected' : ''}>${d.name} (${d.username})</option>`;
+    });
+    body += `</select></div>`;
+    body += `<div class="fg" style="margin-bottom:12px"><label>Priority</label><select id="assignPriority" style="width:100%;padding:.5rem;border:1.5px solid var(--border);border-radius:8px;font-size:.88rem">
+      <option value="normal" ${existing?.priority === 'normal' ? 'selected' : ''}>Normal</option>
+      <option value="high" ${existing?.priority === 'high' ? 'selected' : ''}>High Priority</option>
+      <option value="urgent" ${existing?.priority === 'urgent' ? 'selected' : ''}>Urgent</option>
+    </select></div>`;
+    body += `<div class="fg"><label>Notes for Director (optional)</label><input type="text" id="assignNotes" value="${existing?.notes || ''}" placeholder="e.g. Need this by end of month" style="width:100%;padding:.5rem;border:1.5px solid var(--border);border-radius:8px;font-size:.88rem"></div>`;
+    if (existing) {
+      body += `<p style="font-size:.78rem;color:var(--muted);margin-top:10px">Currently assigned to <strong>${existing.assignedToName}</strong> · Status: <span class="assign-badge ${existing.status}">${existing.status}</span></p>`;
+    }
+  }
+
+  openModal('Assign to Director', body,
+    directors.length ? [{label: existing ? '✓ Update Assignment' : '✓ Assign', cls: 'btn-navy', fn: async () => {
+      const assignedTo = document.getElementById('assignTo').value;
+      const notes = document.getElementById('assignNotes').value;
+      const priority = document.getElementById('assignPriority').value;
+      await fetch('/api/assignments', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ itemId: '${itemId}', sectionId: '${sectionId}', evidenceLabel: decodeURIComponent('${encodedLabel}'), locationId: '${locId}', assignedTo, notes, priority })
+      });
+      closeModal();
+      toast(existing ? 'Assignment updated ✓' : 'Assigned to director ✓', 'ok');
+      await loadAssignments();
+      renderEvidenceTracker();
+    }}] : []
+  );
+}
+
+// Fixed version using data attributes instead of string interpolation in onclick
+async function openAssignModalFixed(btn) {
+  const itemId = btn.dataset.itemid;
+  const sectionId = btn.dataset.sectionid;
+  const evidenceLabel = btn.dataset.label;
+  const locId = btn.dataset.locid;
+
+  const usersRes = await fetch('/api/users');
+  const users = await usersRes.json();
+  const directors = users.filter(u => u.role === 'director' && u.locationId === locId);
+  const existing = getAssignmentForItem(itemId, sectionId, evidenceLabel, locId);
+
+  let body = `<p style="margin:0 0 1rem;font-size:.88rem;color:var(--muted)"><strong>${itemId}:</strong> ${evidenceLabel}</p>`;
+
+  if (!directors.length) {
+    body += `<p style="color:var(--red)">No directors found for this location. Add a director in the Admin panel first.</p>`;
+  } else {
+    body += `<div class="fg" style="margin-bottom:12px"><label>Assign To</label><select id="assignTo" style="width:100%;padding:.5rem;border:1.5px solid var(--border);border-radius:8px;font-size:.88rem">`;
+    directors.forEach(d => {
+      body += `<option value="${d._id}" ${existing && existing.assignedTo === d._id ? 'selected' : ''}>${d.name} (${d.username})</option>`;
+    });
+    body += `</select></div>`;
+    body += `<div class="fg" style="margin-bottom:12px"><label>Priority</label><select id="assignPriority" style="width:100%;padding:.5rem;border:1.5px solid var(--border);border-radius:8px;font-size:.88rem">
+      <option value="normal" ${existing?.priority === 'normal' ? 'selected' : ''}>Normal</option>
+      <option value="high" ${existing?.priority === 'high' ? 'selected' : ''}>High Priority</option>
+      <option value="urgent" ${existing?.priority === 'urgent' ? 'selected' : ''}>Urgent</option>
+    </select></div>`;
+    body += `<div class="fg"><label>Notes for Director (optional)</label><input type="text" id="assignNotes" value="${existing?.notes || ''}" placeholder="e.g. Need this by end of month" style="width:100%;padding:.5rem;border:1.5px solid var(--border);border-radius:8px;font-size:.88rem"></div>`;
+    if (existing) {
+      body += `<p style="font-size:.78rem;color:var(--muted);margin-top:10px">Currently assigned to <strong>${existing.assignedToName}</strong> · Status: <span class="assign-badge ${existing.status}">${existing.status}</span></p>`;
+    }
+  }
+
+  // Store context for the save action
+  window._assignCtx = { itemId, sectionId, evidenceLabel, locId, isUpdate: !!existing };
+
+  openModal('Assign to Director', body,
+    directors.length ? [{label: existing ? '✓ Update Assignment' : '✓ Assign', cls: 'btn-navy', fn: async () => {
+      const ctx = window._assignCtx;
+      const assignedTo = document.getElementById('assignTo').value;
+      const notes = document.getElementById('assignNotes').value;
+      const priority = document.getElementById('assignPriority').value;
+      await fetch('/api/assignments', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ itemId: ctx.itemId, sectionId: ctx.sectionId, evidenceLabel: ctx.evidenceLabel, locationId: ctx.locId, assignedTo, notes, priority })
+      });
+      closeModal();
+      toast(ctx.isUpdate ? 'Assignment updated ✓' : 'Assigned to director ✓', 'ok');
+      await loadAssignments();
+      renderEvidenceTracker();
+    }}] : []
+  );
+}
+
+// ── Assignments View (for both admin and directors) ──
+async function renderAssignmentsView() {
+  const wrap = document.getElementById('assignmentsContent');
+  wrap.innerHTML = '<div style="text-align:center;padding:2rem"><span class="spin dark"></span></div>';
+
+  await loadAssignments();
+
+  const isAdmin = me.role === 'admin';
+  const locName = isAdmin
+    ? (locations.find(l => l._id === currentLocId)?.name || 'All Locations')
+    : (locations.find(l => l._id === me.locationId)?.name || 'Your Center');
+
+  const pending = allAssignments.filter(a => a.status === 'pending');
+  const inProgress = allAssignments.filter(a => a.status === 'in-progress');
+  const completed = allAssignments.filter(a => a.status === 'completed');
+  const total = allAssignments.length;
+
+  let html = `<div>
+    <h2 style="color:var(--navy);margin:0 0 .25rem">${isAdmin ? '📋 Evidence Assignments' : '📋 My Assignments'}</h2>
+    <p style="color:var(--muted);margin:0 0 1.25rem">${isAdmin ? locName + ' · Items delegated to program directors for collection' : 'Evidence items assigned to you for collection and upload'}</p>
+
+    <div class="asgn-stats">
+      <div class="asgn-stat"><div class="asgn-stat-num">${total}</div><div class="asgn-stat-lbl">Total Assigned</div></div>
+      <div class="asgn-stat"><div class="asgn-stat-num" style="color:#6366f1">${pending.length}</div><div class="asgn-stat-lbl">Pending</div></div>
+      <div class="asgn-stat"><div class="asgn-stat-num" style="color:#f59e0b">${inProgress.length}</div><div class="asgn-stat-lbl">In Progress</div></div>
+      <div class="asgn-stat"><div class="asgn-stat-num" style="color:var(--green)">${completed.length}</div><div class="asgn-stat-lbl">Completed</div></div>
+    </div>`;
+
+  if (!total) {
+    html += `<div class="empty"><div class="ei">${isAdmin ? '📋' : '✅'}</div><p>${isAdmin ? 'No items assigned yet. Use the Evidence Tracker to assign items to directors.' : 'No assignments yet. Your admin will assign evidence items here when needed.'}</p></div>`;
+  } else {
+    // Show pending first, then in-progress, then completed
+    const groups = [
+      { label: '⏳ Pending', items: pending, status: 'pending' },
+      { label: '🔄 In Progress', items: inProgress, status: 'in-progress' },
+      { label: '✅ Completed', items: completed, status: 'completed' }
+    ];
+
+    groups.forEach(group => {
+      if (!group.items.length) return;
+      html += `<div style="margin-bottom:1.5rem">
+        <div style="font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.5rem;padding-bottom:.4rem;border-bottom:1px solid var(--border)">${group.label} (${group.items.length})</div>`;
+
+      group.items.forEach(a => {
+        const priorityBadge = a.priority === 'urgent' ? '<span style="font-size:.7rem;background:var(--red-bg);color:var(--red);padding:1px 6px;border-radius:10px;margin-left:4px">🔴 Urgent</span>'
+          : a.priority === 'high' ? '<span style="font-size:.7rem;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:10px;margin-left:4px">🟡 High</span>' : '';
+
+        html += `<div class="asgn-card ${a.status}">
+          <div class="asgn-card-top">
+            <div style="display:flex;align-items:flex-start;gap:.75rem;flex:1">
+              <span class="asgn-card-indicator">${a.itemId}</span>
+              <div>
+                <div class="asgn-card-title">${a.evidenceLabel}${priorityBadge}</div>
+                <div class="asgn-card-meta">
+                  ${isAdmin ? `Assigned to <strong>${a.assignedToName}</strong> · ` : ''}
+                  ${a.status === 'completed' && a.completedAt ? 'Completed ' + new Date(a.completedAt).toLocaleDateString() : 'Assigned ' + new Date(a.createdAt).toLocaleDateString()}
+                </div>
+              </div>
+            </div>
+            <span class="assign-badge ${a.status}">${a.status === 'pending' ? '⏳ Pending' : a.status === 'in-progress' ? '🔄 In Progress' : '✅ Completed'}</span>
+          </div>`;
+
+        if (a.notes) html += `<div class="asgn-card-notes">📝 ${a.notes}</div>`;
+
+        // Show uploaded file if completed
+        if (a.status === 'completed' && a.uploadedFilename) {
+          html += `<div style="margin-top:.5rem;padding:.5rem .75rem;background:var(--green-bg);border-radius:8px;font-size:.82rem">
+            📎 <strong>${a.uploadedOriginalName || 'Uploaded file'}</strong>
+            <a href="/uploads/${a.uploadedFilename}" target="_blank" class="btn btn-outline btn-xs" style="margin-left:.5rem">👁 View</a>
+          </div>`;
+        }
+
+        html += `<div class="asgn-card-actions">`;
+        if (!isAdmin && a.status !== 'completed') {
+          // Director actions
+          if (a.status === 'pending') {
+            html += `<button class="btn btn-sm btn-outline" onclick="updateAssignmentStatus('${a._id}','in-progress')">🔄 Mark In Progress</button>`;
+          }
+          html += `<button class="btn btn-sm btn-gold" onclick="uploadAssignmentFile('${a._id}')">⬆️ Upload Evidence</button>`;
+        }
+        if (isAdmin) {
+          html += `<button class="btn btn-sm btn-red" onclick="deleteAssignment('${a._id}')">🗑️ Remove</button>`;
+        }
+        html += `</div></div>`;
+      });
+
+      html += `</div>`;
+    });
+  }
+
+  html += `</div>`;
+  wrap.innerHTML = html;
+}
+
+async function updateAssignmentStatus(id, status) {
+  await fetch('/api/assignments/' + id, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status }) });
+  toast('Status updated ✓', 'ok');
+  await loadAssignments();
+  renderAssignmentsView();
+}
+
+function uploadAssignmentFile(assignmentId) {
+  document.getElementById('modalTitle').textContent = 'Upload Evidence';
+  document.getElementById('modalBody').innerHTML = `
+    <p style="margin:0 0 1rem;font-size:.88rem;color:var(--muted)">Upload the requested evidence file.</p>
+    <div class="form-row">
+      <label>Select File</label>
+      <input type="file" id="asgnFileInput" style="font-size:.88rem">
+    </div>
+    <div class="form-row">
+      <label>Notes (optional)</label>
+      <input type="text" id="asgnNotes" placeholder="e.g. Spring 2025 assessment results" style="width:100%;padding:.5rem;border:1.5px solid var(--border);border-radius:8px;font-size:.88rem">
+    </div>`;
+  document.getElementById('modalFoot').innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-navy" id="asgnUploadBtn" onclick="submitAssignmentUpload('${assignmentId}')">⬆️ Upload</button>`;
+  document.getElementById('genericModal').classList.add('open');
+}
+
+async function submitAssignmentUpload(assignmentId) {
+  const fileInput = document.getElementById('asgnFileInput');
+  const notes = document.getElementById('asgnNotes').value;
+  const btn = document.getElementById('asgnUploadBtn');
+  if (!fileInput.files[0]) { toast('Please select a file', 'err'); return; }
+  btn.innerHTML = '<span class="spin"></span> Uploading…'; btn.disabled = true;
+  const fd = new FormData();
+  fd.append('file', fileInput.files[0]);
+  fd.append('notes', notes);
+  try {
+    const r = await fetch(`/api/assignments/${assignmentId}/upload`, { method:'POST', body: fd });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    closeModal();
+    toast('Evidence uploaded and assignment completed ✅', 'ok');
+    await loadAssignments();
+    renderAssignmentsView();
+  } catch(e) { toast('Upload failed: ' + e.message, 'err'); btn.innerHTML = '⬆️ Upload'; btn.disabled = false; }
+}
+
+async function deleteAssignment(id) {
+  if (!confirm('Remove this assignment?')) return;
+  await fetch('/api/assignments/' + id, { method:'DELETE' });
+  toast('Assignment removed');
+  await loadAssignments();
+  renderAssignmentsView();
 }
 
 </script>
