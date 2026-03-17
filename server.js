@@ -643,6 +643,51 @@ app.get('/api/progress', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ─── DEBUG: User diagnostic + password reset (REMOVE AFTER FIXING) ────────────
+// Visit: /api/debug/users to see all users (no passwords shown)
+// Visit: /api/debug/reset-password?username=montessori&newpass=TccDir2025 to force-reset
+app.get('/api/debug/users', async (req, res) => {
+  try {
+    const users = await db.users.find({});
+    res.json(users.map(u => ({
+      _id: u._id,
+      username: u.username,
+      name: u.name,
+      role: u.role,
+      locationId: u.locationId,
+      hasPassword: !!u.password,
+      passwordLength: u.password?.length || 0,
+      createdAt: u.createdAt
+    })));
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/debug/reset-password', async (req, res) => {
+  try {
+    const { username, newpass } = req.query;
+    if (!username || !newpass) return res.json({ error: 'Usage: /api/debug/reset-password?username=montessori&newpass=YourNewPassword' });
+    const user = await db.users.findOne({ username: username.toLowerCase() });
+    if (!user) return res.json({ error: `User "${username}" not found. Check /api/debug/users for existing usernames.` });
+    const hashed = await bcrypt.hash(newpass, 10);
+    await db.users.update({ _id: user._id }, { $set: { password: hashed } });
+    // Verify it works
+    const verify = await bcrypt.compare(newpass, hashed);
+    res.json({ ok: true, message: `Password reset for "${username}". Verified: ${verify}. Try logging in now.` });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/debug/test-login', async (req, res) => {
+  try {
+    const { username, password } = req.query;
+    if (!username || !password) return res.json({ error: 'Usage: /api/debug/test-login?username=montessori&password=YourPassword' });
+    const user = await db.users.findOne({ username: username.toLowerCase() });
+    if (!user) return res.json({ found: false, message: `No user with username "${username}"` });
+    const valid = await bcrypt.compare(password, user.password);
+    res.json({ found: true, username: user.username, passwordMatch: valid, role: user.role, locationId: user.locationId });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+// ─── END DEBUG (remove the above block after fixing) ──────────────────────────
+
 // ─── STATIC + CATCH-ALL ────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('*', (req, res) => {
