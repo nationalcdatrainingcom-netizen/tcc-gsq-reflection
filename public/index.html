@@ -129,6 +129,19 @@ body{font-family:'Source Sans 3',sans-serif;background:var(--cream);color:var(--
 .note-box{background:#f0f4ff;border:1px solid #c5d0f0;border-radius:var(--r-sm);padding:9px 12px;margin-bottom:12px;font-size:.8rem;color:#3d5080}
 textarea.narr{width:100%;min-height:110px;border:1.5px solid var(--border);border-radius:var(--r-sm);padding:11px 13px;font-family:'Source Sans 3',sans-serif;font-size:.9rem;line-height:1.6;resize:vertical;transition:border .2s;background:var(--cream)}
 textarea.narr:focus{outline:none;border-color:var(--gold);background:white}
+
+/* Accepted Evidence in Response Tab */
+.accepted-evidence-section { margin-top: 16px; }
+.accepted-evidence-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.accepted-evidence-header h4 { margin: 0; font-size: 0.88rem; color: var(--navy); font-weight: 700; }
+.ae-insert-btn { background: var(--gold); color: var(--navy); border: none; padding: 5px 14px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.15s; }
+.ae-insert-btn:hover { background: #d4a843; }
+.ae-card { background: var(--cream); border: 1px solid var(--border); border-left: 3px solid var(--gold); border-radius: 0 8px 8px 0; padding: 10px 14px; margin-bottom: 8px; }
+.ae-card-source { font-weight: 700; font-size: 0.82rem; color: var(--navy); margin-bottom: 2px; }
+.ae-card-page { font-size: 0.78rem; color: var(--muted); margin-bottom: 6px; }
+.ae-card-excerpt { font-size: 0.85rem; line-height: 1.55; color: var(--text); font-style: italic; }
+.ae-empty { font-size: 0.82rem; color: var(--muted); font-style: italic; padding: 8px 0; }
+
 .rating-row{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}
 .rbn{padding:5px 13px;border-radius:20px;border:2px solid var(--border);background:white;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:'Source Sans 3',sans-serif}
 .rbn[data-v="1"].sel{background:var(--red);border-color:var(--red);color:white}
@@ -356,13 +369,13 @@ textarea.narr:focus{outline:none;border-color:var(--gold);background:white}
 // ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
-let me = null; // { role, locationId }
+let me = null;
 let locations = [];
 let framework = [];
 let currentLocId = null;
 let currentSectionId = null;
 let progress = {};
-let responsesCache = {}; // { locId: { sectionId: { itemId: response } } }
+let responsesCache = {};
 let documents = [];
 
 // ═══════════════════════════════════════════
@@ -401,8 +414,6 @@ async function checkAuth() {
 async function initApp() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
-
-  // Admin UI
   if (me.role === 'admin') {
     document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
   }
@@ -412,7 +423,6 @@ async function initApp() {
   locations = await locsRes.json();
   framework = await fwRes.json();
 
-  // Set initial location
   if (me.role === 'admin') {
     currentLocId = locations[0]?._id || null;
   } else {
@@ -609,7 +619,7 @@ function renderItemCard(item, num, resp) {
   </div>`;
 }
 
-// ─── NARRATIVE TAB ───────────────────────────────────────────────────────────
+// ─── NARRATIVE TAB (UPDATED: shows accepted policy evidence) ─────────────────
 function renderNarr(item, resp) {
   let html = '';
   if (item.note) html += `<div class="note-box">ℹ️ ${item.note}</div>`;
@@ -617,6 +627,29 @@ function renderNarr(item, resp) {
   (item.checklistItems || []).forEach(c => { html += `<li>${c}</li>`; });
   html += `</ul></div>`;
   html += `<textarea class="narr" id="narr-${item.id}" placeholder="Write your self-reflection response here. Be specific — describe what your program does, how it does it, and reference the evidence you have…">${resp.narrative || ''}</textarea>`;
+
+  // ── Accepted Policy Evidence Section ──
+  const accepted = (resp.policyMatches || []).filter(m => m.status === 'accepted');
+  html += `<div class="accepted-evidence-section">
+    <div class="accepted-evidence-header">
+      <h4>📄 Accepted Policy Evidence (${accepted.length})</h4>
+      ${accepted.length ? `<button class="ae-insert-btn" onclick="insertEvidenceIntoNarrative('${item.id}')">📋 Insert All Into Narrative</button>` : ''}
+    </div>`;
+
+  if (accepted.length) {
+    accepted.forEach(m => {
+      const typeLabel = {staff_handbook:'Staff Handbook', family_handbook:'Family Handbook', policy:'Policy Doc', other:'Document'}[m.docType] || 'Document';
+      html += `<div class="ae-card">
+        <div class="ae-card-source">${m.docName} (${typeLabel})</div>
+        <div class="ae-card-page">Page ${m.page}</div>
+        <div class="ae-card-excerpt">${m.excerpt}</div>
+      </div>`;
+    });
+  } else {
+    html += `<div class="ae-empty">No accepted policy evidence yet. Use the Policy Evidence tab to search and accept references.</div>`;
+  }
+  html += `</div>`;
+
   const rlabels = ['Not yet in place','Beginning','Developing','Established','Exemplary'];
   html += `<div class="rating-row">`;
   [1,2,3,4,5].forEach(v => {
@@ -627,6 +660,32 @@ function renderNarr(item, resp) {
     <button class="btn btn-navy btn-sm" id="savebtn-${item.id}" onclick="saveNarr('${item.id}')">💾 Save Response</button>
   </div>`;
   return html;
+}
+
+// ── Insert accepted evidence into narrative textarea ──
+function insertEvidenceIntoNarrative(itemId) {
+  const sec = framework.find(s => s.items.some(i => i.id === itemId));
+  const locId = currentLocId || me.locationId;
+  const resp = responsesCache[locId]?.[sec.id]?.[itemId] || {};
+  const accepted = (resp.policyMatches || []).filter(m => m.status === 'accepted');
+  if (!accepted.length) { toast('No accepted evidence to insert', 'err'); return; }
+
+  const typeLabel = t => ({staff_handbook:'Staff Handbook', family_handbook:'Family Handbook', policy:'Policy Doc', other:'Document'}[t] || 'Document');
+
+  const block = accepted.map(m =>
+    `${m.docName} (${typeLabel(m.docType)}), Page ${m.page}, ${m.excerpt}`
+  ).join('\n\n');
+
+  const textarea = document.getElementById('narr-' + itemId);
+  if (!textarea) return;
+
+  const existing = textarea.value.trim();
+  if (existing) {
+    textarea.value = existing + '\n\n--- Policy Evidence ---\n\n' + block;
+  } else {
+    textarea.value = block;
+  }
+  toast('Evidence inserted into narrative ✓', 'ok');
 }
 
 async function saveNarr(itemId) {
@@ -761,6 +820,9 @@ async function runPolicySearch(itemId, searchQuery) {
       body: JSON.stringify({ sectionId: sec.id, itemId, narrative, policyMatches: merged, rating: resp.rating, locationId: locId }) });
 
     document.getElementById('tab-' + itemId + '-policy').innerHTML = renderPolicy(item, { ...resp, policyMatches: merged });
+    // Also refresh the narr tab so accepted evidence cards update
+    const narrTabEl = document.getElementById('tab-' + itemId + '-narr');
+    if (narrTabEl) narrTabEl.innerHTML = renderNarr(item, { ...resp, policyMatches: merged });
     toast(`Found ${newM.length} match${newM.length !== 1 ? 'es' : ''}`, newM.length ? 'ok' : '');
   } catch(e) { toast('Search failed: ' + e.message, 'err'); }
   btn.innerHTML = orig; btn.disabled = false;
@@ -778,6 +840,9 @@ async function setMatchStatus(itemId, idx, status) {
   await fetch('/api/responses', { method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ sectionId: sec.id, itemId, narrative, policyMatches: matches, rating: resp.rating, locationId: locId }) });
   document.getElementById('tab-' + itemId + '-policy').innerHTML = renderPolicy(item, { ...resp, policyMatches: matches });
+  // Also refresh the narr tab so accepted evidence cards update
+  const narrTabEl = document.getElementById('tab-' + itemId + '-narr');
+  if (narrTabEl) narrTabEl.innerHTML = renderNarr(item, { ...resp, policyMatches: matches });
   refreshItemBadges(itemId, sec.id, locId);
 }
 
@@ -865,14 +930,12 @@ function refreshItemBadges(itemId, secId, locId) {
 // DOCUMENTS
 // ═══════════════════════════════════════════
 async function renderDocsView() {
-  // Always fetch ALL documents when admin so we can group by location
   const r = await fetch('/api/documents/all');
   const allDocs = await r.json();
-  documents = allDocs; // keep global updated
+  documents = allDocs;
 
   const typeLabel = {staff_handbook:'Staff Handbook',family_handbook:'Family Handbook',policy:'Policy Doc',other:'Other'};
 
-  // Build location scope options for the upload form
   let scopeOptions = `<option value="shared">🌐 All locations (shared)</option>`;
   locations.forEach(l => { scopeOptions += `<option value="${l._id}">${l.name} only</option>`; });
 
@@ -906,7 +969,6 @@ async function renderDocsView() {
       </div>
     </div>`;
 
-  // Group documents: shared first, then by location
   const sharedDocs = allDocs.filter(d => d.shared);
   const groups = [
     { label: '🌐 Shared — Available to All Locations', docs: sharedDocs, key: 'shared' },
@@ -941,7 +1003,6 @@ async function renderDocsView() {
     html += '</div></div>';
   });
 
-  // Show empty state if truly nothing
   if (!allDocs.length) {
     html += `<div class="empty"><div class="ei">📚</div><p>No documents uploaded yet.<br>Upload your first handbook or policy document above.</p></div>`;
   }
@@ -949,7 +1010,6 @@ async function renderDocsView() {
   html += '</div>';
   document.getElementById('docsContent').innerHTML = html;
 
-  // drag-drop
   const dz = document.getElementById('dropZone');
   if (dz) {
     dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
@@ -1153,7 +1213,6 @@ function toast(msg, type) {
   if (auth.loggedIn) {
     me = { role: auth.role, locationId: auth.locationId };
     const meRes = await fetch('/api/auth/me');
-    // get name
     me.name = auth.role === 'admin' ? 'Admin' : auth.locationId;
     await initApp();
   }
@@ -1163,7 +1222,6 @@ function toast(msg, type) {
 // EVIDENCE TRACKER
 // ═══════════════════════════════════════════
 
-// Identify which evidence items from the framework need PHYSICAL evidence (not just policy docs)
 function getPhysicalEvidenceItems() {
   const physicalKeywords = [
     'completed', 'photo', 'picture', 'copy of', 'training record', 'certificate',
@@ -1196,16 +1254,14 @@ async function renderEvidenceTracker() {
   const wrap = document.getElementById('evidenceContent');
   wrap.innerHTML = '<div style="padding:2rem;text-align:center"><span class="spin dark"></span></div>';
 
-  // Load tracker items for this location
   const url = locId ? `/api/tracker?locationId=${locId}` : '/api/tracker';
   const r = await fetch(url);
   const trackerItems = await r.json();
-  const trackerMap = {}; // key: `${itemId}||${evidenceLabel}` → tracker record
+  const trackerMap = {};
   trackerItems.forEach(t => { trackerMap[`${t.itemId}||${t.evidenceLabel}`] = t; });
 
   const physItems = getPhysicalEvidenceItems();
 
-  // Count stats
   const total = physItems.reduce((n, p) => n + p.physEvidence.length, 0);
   const uploaded = trackerItems.filter(t => t.status === 'uploaded').length;
   const todo = trackerItems.filter(t => t.status === 'todo').length;
@@ -1222,7 +1278,6 @@ async function renderEvidenceTracker() {
     <div class="stat-card" style="flex:1;min-width:120px;border-color:var(--red)"><div class="stat-num" style="color:var(--red)">${total - uploaded - done - todo}</div><div class="stat-label">Not Started</div></div>
   </div>`;
 
-  // Filter bar
   html += `
   <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.25rem;align-items:center">
     <span style="font-size:.82rem;color:var(--muted);font-weight:600">FILTER:</span>
@@ -1232,7 +1287,6 @@ async function renderEvidenceTracker() {
     <button class="btn btn-sm btn-outline etfilter" data-filter="uploaded" onclick="filterEvidence(this,'uploaded')">✅ Uploaded</button>
   </div>`;
 
-  // Section groups
   physItems.forEach(({ section, item, physEvidence }) => {
     html += `<div class="et-section" data-section="${section.id}">
       <div class="et-section-hdr">${section.name}</div>`;
@@ -1273,7 +1327,6 @@ async function renderEvidenceTracker() {
     html += `</div>`;
   });
 
-  // To-do list summary at bottom
   const todoList = trackerItems.filter(t => t.status === 'todo');
   if (todoList.length > 0) {
     html += `
@@ -1386,7 +1439,6 @@ async function renderReadinessReport() {
     ? (locations.find(l => l._id === locId)?.name || 'All Locations')
     : (me.name || 'Your Center');
 
-  // Load all responses for this location
   const allResponses = {};
   await Promise.all(framework.map(async sec => {
     const url = `/api/responses/${sec.id}${locId ? '?locationId=' + locId : ''}`;
@@ -1398,7 +1450,6 @@ async function renderReadinessReport() {
     });
   }));
 
-  // Load tracker items (physical evidence)
   const trackerUrl = locId ? `/api/tracker?locationId=${locId}` : '/api/tracker';
   const trackerData = await (await fetch(trackerUrl)).json();
   const trackerMap = {};
@@ -1407,7 +1458,6 @@ async function renderReadinessReport() {
     trackerMap[t.itemId][t.evidenceLabel] = t;
   });
 
-  // Helper: classify each evidence example as policy or physical
   const physicalKeywords = ['completed','photo','picture','copy of','training record','certificate','screenshot','form','meeting minutes','agenda','membership','roster','lesson plan','score page','results page','anecdotal','survey','enrollment','conference form','written communication','feedback','schedule'];
   function isPhysical(ex) {
     const lower = ex.toLowerCase();
@@ -1418,11 +1468,9 @@ async function renderReadinessReport() {
     return (lower.includes('policy') || lower.includes('procedure') || lower.includes('statement') || lower.includes('description') || lower.includes('handbook')) && !isPhysical(ex);
   }
 
-  // Tally overall stats
   let totalEvidence = 0, evidenceHave = 0, evidenceMissing = 0, evidenceTodo = 0;
   let itemsFull = 0, itemsPartial = 0, itemsNone = 0;
 
-  // Build report data per item
   const reportSections = framework.map(sec => {
     const items = sec.items.map(item => {
       const resp = allResponses[sec.id]?.[item.id] || {};
@@ -1432,12 +1480,10 @@ async function renderReadinessReport() {
       const rows = examples.map(ex => {
         totalEvidence++;
         if (isPolicyDoc(ex)) {
-          // Check if a policy match covers this
           const covered = acceptedPolicies.length > 0;
           if (covered) { evidenceHave++; return { type: 'policy', label: ex, status: 'have', source: acceptedPolicies[0].docName }; }
           else { evidenceMissing++; return { type: 'policy', label: ex, status: 'missing', source: null }; }
         } else if (isPhysical(ex)) {
-          // Check tracker
           const trackerEntry = trackerMap[item.id]?.[ex];
           if (trackerEntry) {
             if (trackerEntry.status === 'uploaded' || trackerEntry.status === 'done') {
@@ -1451,7 +1497,6 @@ async function renderReadinessReport() {
           evidenceMissing++;
           return { type: 'physical', label: ex, status: 'missing', source: null };
         } else {
-          // Mixed / AND clauses — check both
           const hasPolicyPart = acceptedPolicies.length > 0;
           const physLabel = ex.split('AND one supporting document:')[1]?.trim() || ex;
           const trackerEntry = trackerMap[item.id]?.[physLabel] || trackerMap[item.id]?.[ex];
@@ -1476,7 +1521,6 @@ async function renderReadinessReport() {
     return { sec, items };
   });
 
-  // Build HTML
   const date = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
   let html = `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem">
