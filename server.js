@@ -14,11 +14,10 @@ const GSQ_FRAMEWORK = require('./gsq-framework');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Use DATA_DIR and UPLOADS_DIR env vars (set in Render), fallback to local
-const DATA_DIR    = process.env.DATA_DIR    || path.join(__dirname, 'data');
+// Ensure directories exist
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
-
-[DATA_DIR, UPLOADS_DIR].forEach(dir => {
+[DATA_DIR, UPLOADS_DIR, path.join(__dirname, 'public')].forEach(dir => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 
@@ -27,18 +26,19 @@ console.log('UPLOADS_DIR:', UPLOADS_DIR);
 
 // Databases
 const db = {
-  users:     Datastore.create({ filename: path.join(DATA_DIR, 'users.db'),     autoload: true }),
-  locations: Datastore.create({ filename: path.join(DATA_DIR, 'locations.db'), autoload: true }),
-  responses: Datastore.create({ filename: path.join(DATA_DIR, 'responses.db'), autoload: true }),
-  evidence:  Datastore.create({ filename: path.join(DATA_DIR, 'evidence.db'),  autoload: true }),
-  todoItems: Datastore.create({ filename: path.join(DATA_DIR, 'todo.db'),      autoload: true }),
-  documents: Datastore.create({ filename: path.join(DATA_DIR, 'documents.db'), autoload: true }),
+  users:       Datastore.create({ filename: path.join(DATA_DIR, 'users.db'),       autoload: true }),
+  locations:   Datastore.create({ filename: path.join(DATA_DIR, 'locations.db'),   autoload: true }),
+  responses:   Datastore.create({ filename: path.join(DATA_DIR, 'responses.db'),   autoload: true }),
+  evidence:    Datastore.create({ filename: path.join(DATA_DIR, 'evidence.db'),    autoload: true }),
+  documents:   Datastore.create({ filename: path.join(DATA_DIR, 'documents.db'),   autoload: true }),
+  todoItems:   Datastore.create({ filename: path.join(DATA_DIR, 'todoItems.db'),   autoload: true }),
+  assignments: Datastore.create({ filename: path.join(DATA_DIR, 'assignments.db'), autoload: true }),
 };
 
-// Multer storage
+// Multer
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOADS_DIR),
-  filename:    (req, file, cb) => cb(null, uuidv4() + path.extname(file.originalname))
+  filename: (req, file, cb) => cb(null, uuidv4() + path.extname(file.originalname))
 });
 const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
 
@@ -70,164 +70,117 @@ async function seedDefaults() {
   if (!locs.length) {
     await db.locations.insert([
       { _id: 'niles',      name: 'TCC Niles',            address: 'Niles, MI',      color: '#1a2744', createdAt: new Date() },
-      { _id: 'peace',      name: 'TCC St. Joseph/Peace', address: 'St. Joseph, MI', color: '#2d7a4a', createdAt: new Date() },
-      { _id: 'montessori', name: 'TCC Montessori',       address: 'Niles, MI',      color: '#c8973a', createdAt: new Date() },
+      { _id: 'peace',      name: 'TCC St. Joseph/Peace', address: 'St. Joseph, MI', color: '#253561', createdAt: new Date() },
+      { _id: 'montessori', name: 'TCC Montessori',       address: 'SW Michigan',    color: '#3d5080', createdAt: new Date() }
     ]);
     console.log('Default locations seeded');
   }
 }
 seedDefaults();
 
-// ─── TEXT EXTRACTION HELPERS ──────────────────────────────────────────────────
-async function extractPages(filePath, mimetype, originalName) {
-  let pages = [];
-
-  try {
-    if (mimetype === 'application/pdf' || originalName.match(/\.pdf$/i)) {
-      const buf = fs.readFileSync(filePath);
-      const data = await pdfParse(buf);
-      const fullText = data.text || '';
-      console.log(`PDF extracted ${fullText.length} chars, ${data.numpages} pages`);
-
-      // Try form-feed splits first
-      const ffPages = fullText.split(/\f/).map(t => t.trim()).filter(t => t.length > 10);
-      if (ffPages.length > 1) {
-        pages = ffPages.map((text, i) => ({ page: i + 1, text }));
-      } else {
-        // Fall back to estimated page size
-        const charsPerPage = Math.max(1500, Math.ceil(fullText.length / Math.max(data.numpages, 1)));
-        for (let i = 0; i < Math.ceil(fullText.length / charsPerPage); i++) {
-          const text = fullText.slice(i * charsPerPage, (i + 1) * charsPerPage).trim();
-          if (text) pages.push({ page: i + 1, text });
-        }
-      }
-
-    } else if (originalName.match(/\.docx?$/i)) {
-      const result = await mammoth.extractRawText({ path: filePath });
-      const fullText = result.value || '';
-      console.log(`DOCX extracted ${fullText.length} chars`);
-
-      // Split on any whitespace paragraph break
-      const lines = fullText.split(/\n+/).map(l => l.trim()).filter(l => l.length > 0);
-      const perPage = 25;
-      for (let i = 0; i < Math.ceil(lines.length / perPage); i++) {
-        const text = lines.slice(i * perPage, (i + 1) * perPage).join('\n');
-        if (text.trim()) pages.push({ page: i + 1, text });
-      }
-
-      // Absolute fallback — chunk raw text if line splitting failed
-      if (!pages.length && fullText.trim()) {
-        const chunkSize = 2000;
-        for (let i = 0; i < Math.ceil(fullText.length / chunkSize); i++) {
-          const text = fullText.slice(i * chunkSize, (i + 1) * chunkSize).trim();
-          if (text) pages.push({ page: i + 1, text });
-        }
-      }
-    }
-  } catch (err) {
-    console.error('Extraction error:', err.message);
-  }
-
-  console.log(`Extracted ${pages.length} pages from ${originalName}`);
-  if (pages.length > 0) console.log('First page preview:', pages[0].text.slice(0, 150));
-  return pages;
-}
-
-// ─── AUTH MIDDLEWARE ───────────────────────────────────────────────────────────
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
 function requireAuth(req, res, next) {
-  if (!req.session.userId) return res.status(401).json({ error: 'Not authenticated' });
-  next();
+  if (req.session.userId) return next();
+  res.status(401).json({ error: 'Not authenticated' });
 }
 function requireAdmin(req, res, next) {
-  if (!req.session.userId || req.session.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
-  next();
+  if (req.session.userId && req.session.role === 'admin') return next();
+  res.status(403).json({ error: 'Admin only' });
 }
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const user = await db.users.findOne({ username: username.toLowerCase() });
+    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+    req.session.userId = user._id;
+    req.session.role = user.role;
+    req.session.locationId = user.locationId || null;
+    res.json({ user: { _id: user._id, username: user.username, name: user.name, role: user.role, locationId: user.locationId } });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  req.session.destroy();
+  res.json({ ok: true });
+});
+
+app.get('/api/auth/me', (req, res) => {
+  if (!req.session.userId) return res.json({ loggedIn: false });
+  res.json({ loggedIn: true, role: req.session.role, locationId: req.session.locationId, userId: req.session.userId });
+});
+
+app.post('/api/auth/change-password', requireAuth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const user = await db.users.findOne({ _id: req.session.userId });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const valid = await bcrypt.compare(currentPassword, user.password);
+    if (!valid) return res.status(400).json({ error: 'Current password is incorrect' });
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await db.users.update({ _id: user._id }, { $set: { password: hashed } });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── LOCATIONS & USERS ────────────────────────────────────────────────────────
+app.get('/api/locations', requireAuth, async (req, res) => {
+  res.json(await db.locations.find({}));
+});
+
+app.get('/api/users', requireAdmin, async (req, res) => {
+  const users = await db.users.find({});
+  res.json(users.map(u => ({ ...u, password: undefined })));
+});
+
+app.post('/api/users', requireAdmin, async (req, res) => {
+  try {
+    const { _id, username, password, role, name, locationId } = req.body;
+    if (_id) {
+      const update = { name, role, locationId: locationId || null };
+      if (password) update.password = await bcrypt.hash(password, 10);
+      await db.users.update({ _id }, { $set: update });
+      res.json({ ok: true });
+    } else {
+      const existing = await db.users.findOne({ username: username.toLowerCase() });
+      if (existing) return res.status(400).json({ error: 'Username taken' });
+      const hashed = await bcrypt.hash(password, 10);
+      const doc = await db.users.insert({ username: username.toLowerCase(), password: hashed, role, name, locationId: locationId || null, createdAt: new Date() });
+      res.json({ ...doc, password: undefined });
+    }
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/users/:id', requireAdmin, async (req, res) => {
+  try {
+    await db.users.remove({ _id: req.params.id }, {});
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── FRAMEWORK ─────────────────────────────────────────────────────────────────
+app.get('/api/framework', requireAuth, (req, res) => {
+  res.json(GSQ_FRAMEWORK);
+});
+
+// ─── RESPONSES ─────────────────────────────────────────────────────────────────
 function getLocationFilter(req) {
   if (req.session.role === 'admin') return req.query.locationId || req.body?.locationId || null;
   return req.session.locationId;
 }
 
-// ─── AUTH ─────────────────────────────────────────────────────────────────────
-app.post('/api/auth/login', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    const user = await db.users.findOne({ username: username.toLowerCase() });
-    if (!user) return res.status(401).json({ error: 'Invalid username or password' });
-    const ok = await bcrypt.compare(password, user.password);
-    if (!ok) return res.status(401).json({ error: 'Invalid username or password' });
-    req.session.userId   = user._id;
-    req.session.role     = user.role;
-    req.session.locationId = user.locationId || null;
-    res.json({ ok: true, user: { username: user.username, name: user.name, role: user.role, locationId: user.locationId || null } });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-app.post('/api/auth/logout', (req, res) => { req.session.destroy(); res.json({ ok: true }); });
-app.get('/api/auth/me', (req, res) => {
-  if (!req.session.userId) return res.json({ loggedIn: false });
-  res.json({ loggedIn: true, role: req.session.role, locationId: req.session.locationId });
-});
-app.post('/api/auth/change-password', requireAuth, async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-    const user = await db.users.findOne({ _id: req.session.userId });
-    const ok = await bcrypt.compare(currentPassword, user.password);
-    if (!ok) return res.status(400).json({ error: 'Current password incorrect' });
-    const hashed = await bcrypt.hash(newPassword, 10);
-    await db.users.update({ _id: req.session.userId }, { $set: { password: hashed } });
-    res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// ─── LOCATIONS ────────────────────────────────────────────────────────────────
-app.get('/api/locations', requireAuth, async (req, res) => {
-  try { res.json(await db.locations.find({})); } catch (e) { res.status(500).json({ error: e.message }); }
-});
-app.post('/api/locations', requireAdmin, async (req, res) => {
-  try {
-    const { _id, name, address, color } = req.body;
-    if (_id) { await db.locations.update({ _id }, { $set: { name, address, color } }); res.json({ ok: true }); }
-    else { res.json(await db.locations.insert({ name, address, color: color || '#1a2744', createdAt: new Date() })); }
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// ─── USERS ────────────────────────────────────────────────────────────────────
-app.get('/api/users', requireAdmin, async (req, res) => {
-  try { res.json((await db.users.find({})).map(u => ({ ...u, password: undefined }))); }
-  catch (e) { res.status(500).json({ error: e.message }); }
-});
-app.post('/api/users', requireAdmin, async (req, res) => {
-  try {
-    const { _id, username, password, role, name, locationId } = req.body;
-    if (_id) {
-      const upd = { role, name, locationId };
-      if (password) upd.password = await bcrypt.hash(password, 10);
-      await db.users.update({ _id }, { $set: upd });
-      res.json({ ok: true });
-    } else {
-      const existing = await db.users.findOne({ username: username.toLowerCase() });
-      if (existing) return res.status(400).json({ error: 'Username taken' });
-      const doc = await db.users.insert({ username: username.toLowerCase(), password: await bcrypt.hash(password, 10), role, name, locationId: locationId || null, createdAt: new Date() });
-      res.json({ ...doc, password: undefined });
-    }
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-app.delete('/api/users/:id', requireAdmin, async (req, res) => {
-  try { await db.users.remove({ _id: req.params.id }, {}); res.json({ ok: true }); }
-  catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// ─── FRAMEWORK ────────────────────────────────────────────────────────────────
-app.get('/api/framework', requireAuth, (req, res) => res.json(GSQ_FRAMEWORK));
-
-// ─── RESPONSES ────────────────────────────────────────────────────────────────
 app.get('/api/responses/:sectionId', requireAuth, async (req, res) => {
   try {
     const locationId = getLocationFilter(req);
     const query = { sectionId: req.params.sectionId };
     if (locationId) query.locationId = locationId;
-    res.json(await db.responses.find(query));
+    const responses = await db.responses.find(query);
+    res.json(responses);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+
 app.post('/api/responses', requireAuth, async (req, res) => {
   try {
     const { sectionId, itemId, narrative, policyMatches, rating, notes } = req.body;
@@ -268,90 +221,96 @@ app.delete('/api/evidence/:id', requireAuth, async (req, res) => {
 });
 
 // ─── DOCUMENTS ────────────────────────────────────────────────────────────────
-
-// Debug: see what's actually stored (visit /api/debug/docs in browser while logged in)
-app.get('/api/debug/docs', requireAuth, async (req, res) => {
-  try {
-    const allDocs = await db.documents.find({});
-    res.json(allDocs.map(d => ({
-      _id: d._id,
-      docName: d.docName,
-      shared: d.shared,
-      locationId: d.locationId,
-      pageCount: d.pageCount,
-      pagesStored: (d.pages || []).length,
-      firstPageChars: d.pages?.[0]?.text?.length || 0,
-      firstPagePreview: d.pages?.[0]?.text?.slice(0, 300) || 'NO TEXT STORED',
-      mimetype: d.mimetype,
-      originalName: d.originalName,
-      fileExists: fs.existsSync(path.join(UPLOADS_DIR, d.filename))
-    })));
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// All docs for management view
 app.get('/api/documents/all', requireAuth, async (req, res) => {
   try {
-    const allDocs = await db.documents.find({});
-    let docs = req.session.role === 'admin'
-      ? allDocs
-      : allDocs.filter(d => d.shared === true || d.locationId === req.session.locationId);
+    let docs;
+    if (req.session.role === 'admin') {
+      docs = await db.documents.find({});
+    } else {
+      const locId = req.session.locationId;
+      docs = await db.documents.find(locId ? { $or: [{ locationId: locId }, { shared: true }] } : { shared: true });
+    }
     docs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     res.json(docs.map(d => ({ ...d, pages: undefined })));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Scoped docs for policy search
 app.get('/api/documents', requireAuth, async (req, res) => {
   try {
     const locationId = getLocationFilter(req);
-    const allDocs = await db.documents.find({});
-    const docs = locationId
-      ? allDocs.filter(d => d.shared === true || d.locationId === locationId)
-      : allDocs;
+    const query = locationId ? { $or: [{ locationId }, { shared: true }] } : {};
+    const docs = await db.documents.find(query);
     res.json(docs.map(d => ({ ...d, pages: undefined })));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Upload a new document
-app.post('/api/documents/upload', requireAuth, upload.single('file'), async (req, res) => {
+app.get('/api/debug/docs', requireAuth, async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    const { docType, docName, shared } = req.body;
-    const isShared  = shared === 'true';
-    const locationId = isShared ? null : (req.body.locationId || (req.session.role !== 'admin' ? req.session.locationId : null));
-    const filePath  = path.join(UPLOADS_DIR, req.file.filename);
-
-    const pages = await extractPages(filePath, req.file.mimetype, req.file.originalname);
-
-    const doc = await db.documents.insert({
-      filename:     req.file.filename,
-      originalName: req.file.originalname,
-      docType:      docType || 'policy',
-      docName:      docName || req.file.originalname.replace(/\.[^/.]+$/, ''),
-      mimetype:     req.file.mimetype,
-      size:         req.file.size,
-      pageCount:    pages.length,
-      pages,
-      locationId:   isShared ? null : locationId,
-      shared:       isShared,
-      createdAt:    new Date()
-    });
-
-    res.json({ _id: doc._id, docName: doc.docName, docType: doc.docType, pageCount: doc.pageCount, shared: doc.shared });
+    const allDocs = await db.documents.find({});
+    res.json(allDocs.map(d => ({
+      _id: d._id, docName: d.docName, shared: d.shared, locationId: d.locationId,
+      pageCount: d.pageCount, pagesStored: (d.pages || []).length,
+      firstPageChars: d.pages?.[0]?.text?.length || 0,
+      firstPagePreview: d.pages?.[0]?.text?.substring(0, 200) || '(empty)'
+    })));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Re-index existing document (re-extract text without re-uploading)
+app.post('/api/documents/upload', requireAuth, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file' });
+    const { docName, docType } = req.body;
+    const shared = req.body.shared === 'true';
+    const locationId = shared ? null : (req.body.locationId || null);
+    const filePath = path.join(UPLOADS_DIR, req.file.filename);
+
+    let pages = [];
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    if (ext === '.pdf') {
+      const buffer = fs.readFileSync(filePath);
+      const data = await pdfParse(buffer);
+      const rawPages = data.text.split(/\f/);
+      pages = rawPages.map((text, i) => ({ page: i + 1, text: text.trim().substring(0, 1200) })).filter(p => p.text.length > 10);
+    } else if (ext === '.docx' || ext === '.doc') {
+      const buffer = fs.readFileSync(filePath);
+      const result = await mammoth.extractRawText({ buffer });
+      const chunks = result.value.match(/.{1,1200}/gs) || [];
+      pages = chunks.map((text, i) => ({ page: i + 1, text: text.trim() })).filter(p => p.text.length > 10);
+    }
+
+    const doc = await db.documents.insert({
+      docName: docName || req.file.originalname, docType, shared, locationId,
+      filename: req.file.filename, originalName: req.file.originalname,
+      mimetype: req.file.mimetype, size: req.file.size,
+      pageCount: pages.length, pages, createdAt: new Date()
+    });
+    res.json({ ...doc, pages: undefined });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/documents/:id/reindex', requireAuth, async (req, res) => {
   try {
     const doc = await db.documents.findOne({ _id: req.params.id });
-    if (!doc) return res.status(404).json({ error: 'Document not found' });
+    if (!doc) return res.status(404).json({ error: 'Not found' });
     const filePath = path.join(UPLOADS_DIR, doc.filename);
-    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Original file missing from disk — please delete and re-upload' });
-    const pages = await extractPages(filePath, doc.mimetype, doc.originalName);
-    await db.documents.update({ _id: req.params.id }, { $set: { pages, pageCount: pages.length } });
-    res.json({ ok: true, pageCount: pages.length, preview: pages[0]?.text?.slice(0, 200) || 'empty' });
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File missing from disk' });
+
+    let pages = [];
+    const ext = path.extname(doc.originalName || doc.filename).toLowerCase();
+    if (ext === '.pdf') {
+      const buffer = fs.readFileSync(filePath);
+      const data = await pdfParse(buffer);
+      const rawPages = data.text.split(/\f/);
+      pages = rawPages.map((text, i) => ({ page: i + 1, text: text.trim().substring(0, 1200) })).filter(p => p.text.length > 10);
+    } else if (ext === '.docx' || ext === '.doc') {
+      const buffer = fs.readFileSync(filePath);
+      const result = await mammoth.extractRawText({ buffer });
+      const chunks = result.value.match(/.{1,1200}/gs) || [];
+      pages = chunks.map((text, i) => ({ page: i + 1, text: text.trim() })).filter(p => p.text.length > 10);
+    }
+
+    await db.documents.update({ _id: doc._id }, { $set: { pages, pageCount: pages.length } });
+    res.json({ ok: true, pageCount: pages.length });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -359,7 +318,6 @@ app.delete('/api/documents/:id', requireAuth, async (req, res) => {
   try {
     const doc = await db.documents.findOne({ _id: req.params.id });
     if (doc) {
-      if (doc.shared && req.session.role !== 'admin') return res.status(403).json({ error: 'Only admins can delete shared documents' });
       const fp = path.join(UPLOADS_DIR, doc.filename);
       if (fs.existsSync(fp)) fs.unlinkSync(fp);
       await db.documents.remove({ _id: req.params.id }, {});
@@ -371,126 +329,74 @@ app.delete('/api/documents/:id', requireAuth, async (req, res) => {
 // ─── AI POLICY SEARCH ─────────────────────────────────────────────────────────
 app.post('/api/ai/search-policies', requireAuth, async (req, res) => {
   try {
-    const { itemText, criteria, checklistItems, searchQuery, docIds } = req.body;
-    const locationId = getLocationFilter(req);
+    const { itemText, criteria, checklistItems, searchQuery } = req.body;
+    const locationId = req.session.role === 'admin'
+      ? (req.body.locationId || null)
+      : req.session.locationId;
 
-    // Fetch all docs then filter in JS (avoids NeDB null-field matching quirks)
-    const allDocs = await db.documents.find({});
-    let docs;
-    if (docIds && docIds.length) {
-      docs = allDocs.filter(d => docIds.includes(d._id));
-    } else if (locationId) {
-      // Include docs for this location AND all shared docs
-      docs = allDocs.filter(d => d.shared === true || d.locationId === locationId);
-    } else {
-      // Admin with no location selected — search ALL documents
-      docs = allDocs;
-    }
+    const docQuery = locationId ? { $or: [{ locationId }, { shared: true }] } : {};
+    const docs = await db.documents.find(docQuery);
+    if (!docs.length) return res.json({ message: 'No documents uploaded yet. Go to Documents tab to upload your handbooks and policies first.' });
 
-    console.log(`Policy search: locationId="${locationId}", ${docs.length}/${allDocs.length} docs in scope`);
-    docs.forEach(d => console.log(` - "${d.docName}" shared=${d.shared} loc=${d.locationId} pages=${(d.pages||[]).length}`));
+    const searchTerms = searchQuery
+      ? searchQuery.toLowerCase().split(/\s+/)
+      : (itemText + ' ' + (criteria || '')).toLowerCase()
+          .split(/\s+/)
+          .filter(w => w.length >= 3 && !['the','and','for','are','that','this','with','has','have','from','they','been','were','was','not','but','all','can','had','her','one','our','out','you','its','his','she','who','how','may','did','get','than','let','too','use'].includes(w));
 
-    if (!docs.length) {
-      return res.json({ matches: [], message: `No documents found. Total in system: ${allDocs.length}. Check the Documents tab.` });
-    }
-
-    const docsWithPages = docs.filter(d => (d.pages || []).length > 0);
-    if (!docsWithPages.length) {
-      return res.json({ matches: [], message: `${docs.length} document(s) found but none have indexed text yet. Click the 🔄 Re-index button on each document in the Documents tab, then try again.` });
-    }
-
-    // Build keyword list (include short words — GSQ uses "oral", "play", "home", "care")
-    const allText = [itemText, criteria, searchQuery, ...(checklistItems || [])].filter(Boolean).join(' ');
-    const stopWords = new Set(['the','and','for','are','that','this','with','have','from','they','will','been','their','what','when','your','which','into','more','also','each','does','show','must','least','one','two','all','how','its','per','not','but','may']);
-    const keywords = [...new Set(
-      allText.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length >= 3 && !stopWords.has(w))
-    )];
-
-    console.log('Search keywords:', keywords.slice(0, 20).join(', '));
-
-    // Score every page
-    let pagePool = [];
-    docsWithPages.forEach(doc => {
-      (doc.pages || []).forEach(p => {
-        if (!p.text || p.text.trim().length < 10) return;
-        const lower = p.text.toLowerCase();
-        const hits = keywords.filter(k => lower.includes(k)).length;
-        pagePool.push({ docName: doc.docName, docType: doc.docType, page: p.page, text: p.text, hits });
+    const scored = [];
+    docs.forEach(doc => {
+      (doc.pages || []).forEach(page => {
+        const lower = page.text.toLowerCase();
+        const hits = searchTerms.filter(t => lower.includes(t)).length;
+        if (hits > 0) scored.push({ doc, page, hits });
       });
     });
+    scored.sort((a, b) => b.hits - a.hits);
+    const top = scored.slice(0, 25);
 
-    console.log(`Page pool: ${pagePool.length} pages total, ${pagePool.filter(p=>p.hits>0).length} with keyword hits`);
+    if (!top.length) return res.json({ message: 'No relevant content found in your documents for this indicator. Try uploading more handbooks or policy documents.' });
 
-    // Sort by relevance; always send top 25 even if score is 0
-    pagePool.sort((a, b) => b.hits - a.hits);
-    const topPages = pagePool.slice(0, 25);
+    const contextBlock = top.map(s =>
+      `[${s.doc.docName} | ${s.doc.docType} | Page ${s.page.page}]\n${s.page.text}`
+    ).join('\n---\n');
 
-    const contextText = topPages.map(p =>
-      `[Document: "${p.docName}" | Type: ${p.docType} | Page ${p.page} | Keyword hits: ${p.hits}]\n${p.text.slice(0, 1200)}`
-    ).join('\n\n---\n\n');
+    const prompt = `You are helping a childcare program find policy evidence for a Great Start to Quality self-reflection.
 
-    const prompt = `You are a Michigan Great Start to Quality (GSQ) QRIS compliance expert helping a childcare director complete their self-reflection for a 5-star rating.
+INDICATOR: ${itemText}
 
-INDICATOR BEING EVALUATED:
-${itemText}
+CRITERIA/CHECKLIST:
+${(checklistItems || []).join('\n')}
 
-WHAT EVALUATORS ARE LOOKING FOR:
-${checklistItems ? checklistItems.map((c, i) => `${i + 1}. ${c}`).join('\n') : criteria || 'General compliance evidence'}
+SEARCH DOCUMENTS:
+${contextBlock}
 
-${searchQuery ? `DIRECTOR'S SEARCH QUERY: "${searchQuery}"` : ''}
+Find ALL passages that relate to this indicator — match BROADLY and GENEROUSLY. A parent communication policy counts for family engagement. A daily schedule counts for routine indicators. Staff meeting notes count for professional development.
 
-IMPORTANT INSTRUCTIONS:
-- Search broadly and generously. A policy RELATED to this indicator counts even if it does not use the exact same words.
-- A "Parent Communication Policy" is evidence for sharing developmental progress with families.
-- A "Daily Schedule" section counts for an indicator about daily routines.
-- A staff handbook section on illness/absence counts for personnel policies.
-- Look for ANY section heading, paragraph, bullet point, or statement that addresses the topic.
-- Be GENEROUS in matching. It is better to suggest something that gets dismissed than to miss valid evidence.
+Return a JSON array of matches. Each match:
+{"docName":"exact doc name","docType":"exact doc type","page":number,"excerpt":"exact quote from document (2-4 sentences)","relevance":"why this is relevant"}
 
-DOCUMENT PAGES TO SEARCH:
-${contextText}
+Return [] if truly nothing relates. ONLY return the JSON array, nothing else.`;
 
-Find ALL passages that could serve as policy citations or evidence for this GSQ indicator.
-
-Respond ONLY with a valid JSON array (no markdown, no preamble):
-[
-  {
-    "docName": "exact document name from above",
-    "docType": "staff_handbook|family_handbook|policy|other",
-    "page": <page number as integer>,
-    "excerpt": "<copy 2-4 sentences directly from the document text above>",
-    "relevance": "<one sentence: which checklist item this satisfies and why>"
-  }
-]
-
-If truly nothing is relevant, return: []`;
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-opus-4-5', max_tokens: 3000, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 4000, messages: [{ role: 'user', content: prompt }] })
     });
-
-    const data = await response.json();
-    if (data.error) { console.error('Anthropic error:', data.error); return res.status(500).json({ error: data.error.message }); }
-
-    let text = (data.content?.[0]?.text || '[]').replace(/```json|```/g, '').trim();
-    const arrMatch = text.match(/\[[\s\S]*\]/);
+    const apiData = await apiRes.json();
+    let text = apiData.content?.[0]?.text || '[]';
+    text = text.replace(/```json|```/g, '').trim();
     let matches = [];
-    try { matches = JSON.parse(arrMatch ? arrMatch[0] : text); } catch { matches = []; }
-    console.log(`AI returned ${matches.length} matches`);
+    try { matches = JSON.parse(text); } catch { matches = []; }
 
     res.json({ matches });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-
-// ─── EVIDENCE TRACKER (physical evidence & to-do list) ───────────────────────
-
-// Get all tracker items for a location
+// ─── TRACKER (Physical Evidence) ──────────────────────────────────────────────
 app.get('/api/tracker', requireAuth, async (req, res) => {
   try {
-    const locationId = getLocationFilter(req);
+    const locationId = req.query.locationId || (req.session.role !== 'admin' ? req.session.locationId : null);
     const allItems = await db.todoItems.find({});
     const items = locationId
       ? allItems.filter(i => i.locationId === locationId)
@@ -499,12 +405,11 @@ app.get('/api/tracker', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Add/update a tracker item (todo or uploaded)
 app.post('/api/tracker', requireAuth, async (req, res) => {
   try {
     const { itemId, sectionId, evidenceLabel, status, notes } = req.body;
     const locationId = req.session.role === 'admin'
-      ? (req.body.locationId || currentLocId || 'admin')
+      ? (req.body.locationId || 'admin')
       : req.session.locationId;
     const existing = await db.todoItems.findOne({ itemId, sectionId, evidenceLabel, locationId });
     if (existing) {
@@ -517,7 +422,6 @@ app.post('/api/tracker', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Upload physical evidence file and attach to tracker item
 app.post('/api/tracker/upload', requireAuth, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file' });
@@ -525,6 +429,10 @@ app.post('/api/tracker/upload', requireAuth, upload.single('file'), async (req, 
     const locationId = req.session.role === 'admin'
       ? (req.body.locationId || 'admin')
       : req.session.locationId;
+
+    // Check if this completes an assignment
+    const assignment = await db.assignments.findOne({ itemId, sectionId, evidenceLabel, locationId, status: { $ne: 'completed' } });
+
     const doc = await db.todoItems.insert({
       itemId, sectionId, evidenceLabel, locationId,
       status: 'uploaded',
@@ -536,11 +444,21 @@ app.post('/api/tracker/upload', requireAuth, upload.single('file'), async (req, 
       createdAt: new Date(),
       updatedAt: new Date()
     });
+
+    // Auto-complete the assignment if one exists
+    if (assignment) {
+      await db.assignments.update({ _id: assignment._id }, { $set: {
+        status: 'completed',
+        completedAt: new Date(),
+        uploadedFilename: req.file.filename,
+        uploadedOriginalName: req.file.originalname
+      }});
+    }
+
     res.json(doc);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Delete a tracker item
 app.delete('/api/tracker/:id', requireAuth, async (req, res) => {
   try {
     const item = await db.todoItems.findOne({ _id: req.params.id });
@@ -553,24 +471,182 @@ app.delete('/api/tracker/:id', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ─── PROGRESS ─────────────────────────────────────────────────────────────────
+// ─── ASSIGNMENTS (Director Delegation) ────────────────────────────────────────
+
+// Admin: create or update an assignment
+app.post('/api/assignments', requireAdmin, async (req, res) => {
+  try {
+    const { itemId, sectionId, evidenceLabel, locationId, assignedTo, notes, priority } = req.body;
+    // assignedTo = userId of the director
+    const existing = await db.assignments.findOne({ itemId, sectionId, evidenceLabel, locationId });
+    if (existing) {
+      await db.assignments.update({ _id: existing._id }, { $set: {
+        assignedTo, notes: notes || existing.notes, priority: priority || existing.priority, updatedAt: new Date()
+      }});
+      res.json({ ok: true, _id: existing._id });
+    } else {
+      const doc = await db.assignments.insert({
+        itemId, sectionId, evidenceLabel, locationId,
+        assignedTo,
+        assignedBy: req.session.userId,
+        status: 'pending',
+        notes: notes || '',
+        priority: priority || 'normal',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      res.json(doc);
+    }
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Admin: bulk assign multiple items at once
+app.post('/api/assignments/bulk', requireAdmin, async (req, res) => {
+  try {
+    const { items, assignedTo, locationId, notes, priority } = req.body;
+    // items = array of { itemId, sectionId, evidenceLabel }
+    const results = [];
+    for (const item of items) {
+      const existing = await db.assignments.findOne({
+        itemId: item.itemId, sectionId: item.sectionId,
+        evidenceLabel: item.evidenceLabel, locationId
+      });
+      if (existing) {
+        await db.assignments.update({ _id: existing._id }, { $set: {
+          assignedTo, notes: notes || '', priority: priority || 'normal', updatedAt: new Date()
+        }});
+        results.push({ ...existing, assignedTo });
+      } else {
+        const doc = await db.assignments.insert({
+          itemId: item.itemId, sectionId: item.sectionId,
+          evidenceLabel: item.evidenceLabel, locationId,
+          assignedTo, assignedBy: req.session.userId,
+          status: 'pending', notes: notes || '',
+          priority: priority || 'normal',
+          createdAt: new Date(), updatedAt: new Date()
+        });
+        results.push(doc);
+      }
+    }
+    res.json({ ok: true, count: results.length });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get assignments — admin sees all (optionally filtered), directors see only theirs
+app.get('/api/assignments', requireAuth, async (req, res) => {
+  try {
+    let query = {};
+    if (req.session.role === 'admin') {
+      if (req.query.locationId) query.locationId = req.query.locationId;
+    } else {
+      // Directors see assignments assigned to them
+      query.assignedTo = req.session.userId;
+    }
+    const assignments = await db.assignments.find(query);
+    // Enrich with assignee name
+    const users = await db.users.find({});
+    const userMap = {};
+    users.forEach(u => { userMap[u._id] = u.name; });
+    const enriched = assignments.map(a => ({
+      ...a,
+      assignedToName: userMap[a.assignedTo] || 'Unknown'
+    }));
+    res.json(enriched);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Director: update assignment status (e.g. mark in-progress)
+app.patch('/api/assignments/:id', requireAuth, async (req, res) => {
+  try {
+    const { status, notes } = req.body;
+    const assignment = await db.assignments.findOne({ _id: req.params.id });
+    if (!assignment) return res.status(404).json({ error: 'Not found' });
+    // Directors can only update their own assignments
+    if (req.session.role !== 'admin' && assignment.assignedTo !== req.session.userId) {
+      return res.status(403).json({ error: 'Not your assignment' });
+    }
+    const update = { updatedAt: new Date() };
+    if (status) update.status = status;
+    if (notes !== undefined) update.notes = notes;
+    if (status === 'completed') update.completedAt = new Date();
+    await db.assignments.update({ _id: req.params.id }, { $set: update });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Director: upload file for an assignment
+app.post('/api/assignments/:id/upload', requireAuth, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file' });
+    const assignment = await db.assignments.findOne({ _id: req.params.id });
+    if (!assignment) return res.status(404).json({ error: 'Not found' });
+    if (req.session.role !== 'admin' && assignment.assignedTo !== req.session.userId) {
+      return res.status(403).json({ error: 'Not your assignment' });
+    }
+
+    // Mark assignment completed
+    await db.assignments.update({ _id: req.params.id }, { $set: {
+      status: 'completed',
+      completedAt: new Date(),
+      uploadedFilename: req.file.filename,
+      uploadedOriginalName: req.file.originalname,
+      updatedAt: new Date()
+    }});
+
+    // Also create a tracker entry so it shows in the evidence tracker
+    await db.todoItems.insert({
+      itemId: assignment.itemId,
+      sectionId: assignment.sectionId,
+      evidenceLabel: assignment.evidenceLabel,
+      locationId: assignment.locationId,
+      status: 'uploaded',
+      notes: req.body.notes || `Uploaded by director`,
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Admin: delete an assignment
+app.delete('/api/assignments/:id', requireAdmin, async (req, res) => {
+  try {
+    await db.assignments.remove({ _id: req.params.id }, {});
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── PROGRESS ──────────────────────────────────────────────────────────────────
 app.get('/api/progress', requireAuth, async (req, res) => {
   try {
     const locationId = getLocationFilter(req);
-    const allResponses = await db.responses.find({});
-    const responses = locationId ? allResponses.filter(r => r.locationId === locationId) : allResponses;
-    const result = GSQ_FRAMEWORK.map(section => ({
-      id: section.id, name: section.name,
-      totalItems: section.items.length,
-      completed: responses.filter(r => r.sectionId === section.id && r.narrative?.trim()).length,
-      policyCount: responses.filter(r => r.sectionId === section.id && (r.policyMatches || []).some(m => m.status === 'accepted')).length
-    }));
+    const query = {};
+    if (locationId) query.locationId = locationId;
+    const responses = await db.responses.find(query);
+
+    const result = GSQ_FRAMEWORK.map(section => {
+      const totalItems = section.items.length;
+      const completed = responses.filter(r =>
+        r.sectionId === section.id && r.narrative && r.narrative.trim()
+      ).length;
+      const policyCount = responses.filter(r =>
+        r.sectionId === section.id && (r.policyMatches || []).some(m => m.status === 'accepted')
+      ).length;
+      return { id: section.id, name: section.name, totalItems, completed, policyCount };
+    });
     res.json(result);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ─── STATIC ───────────────────────────────────────────────────────────────────
+// ─── STATIC + CATCH-ALL ────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
-app.get('/{*path}', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 app.listen(PORT, () => console.log(`GSQ Self-Reflection Tool running on port ${PORT}`));
