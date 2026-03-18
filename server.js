@@ -91,15 +91,17 @@ function requireAdmin(req, res, next) {
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { username, password } = req.body;
+    console.log('Login attempt:', username, '| password length:', password?.length);
     const user = await db.users.findOne({ username: username.toLowerCase() });
-    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!user) { console.log('Login fail: user not found'); return res.status(401).json({ error: 'Invalid credentials' }); }
     const valid = await bcrypt.compare(password, user.password);
+    console.log('Login bcrypt result:', valid, '| hash length:', user.password?.length);
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
     req.session.userId = user._id;
     req.session.role = user.role;
     req.session.locationId = user.locationId || null;
     res.json({ user: { _id: user._id, username: user.username, name: user.name, role: user.role, locationId: user.locationId } });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error('Login error:', e); res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/auth/logout', (req, res) => {
