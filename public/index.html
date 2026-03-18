@@ -1811,12 +1811,23 @@ async function renderAssignmentsView() {
         const priorityBadge = a.priority === 'urgent' ? '<span style="font-size:.7rem;background:var(--red-bg);color:var(--red);padding:1px 6px;border-radius:10px;margin-left:4px">🔴 Urgent</span>'
           : a.priority === 'high' ? '<span style="font-size:.7rem;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:10px;margin-left:4px">🟡 High</span>' : '';
 
+        // Look up the framework item for title + description
+        let fwItem = null;
+        for (const sec of framework) {
+          const found = sec.items.find(i => i.id === a.itemId);
+          if (found) { fwItem = found; break; }
+        }
+        const itemTitle = fwItem ? fwItem.title : a.itemId;
+        const itemDesc = fwItem ? fwItem.fullText : '';
+
         html += `<div class="asgn-card ${a.status}">
           <div class="asgn-card-top">
             <div style="display:flex;align-items:flex-start;gap:.75rem;flex:1">
               <span class="asgn-card-indicator">${a.itemId}</span>
               <div>
-                <div class="asgn-card-title">${a.evidenceLabel}${priorityBadge}</div>
+                <div class="asgn-card-title">${itemTitle}${priorityBadge}</div>
+                ${itemDesc ? `<div style="font-size:.8rem;color:var(--muted);line-height:1.5;margin:4px 0 6px">${itemDesc}</div>` : ''}
+                <div style="font-size:.85rem;color:var(--navy);font-weight:600;background:var(--gold-pale);border-left:3px solid var(--gold);padding:6px 10px;border-radius:0 6px 6px 0;margin:4px 0 6px">📄 Requested: ${a.evidenceLabel}</div>
                 <div class="asgn-card-meta">
                   ${isAdmin ? `Assigned to <strong>${a.assignedToName}</strong> · ` : ''}
                   ${a.status === 'completed' && a.completedAt ? 'Completed ' + new Date(a.completedAt).toLocaleDateString() : 'Assigned ' + new Date(a.createdAt).toLocaleDateString()}
