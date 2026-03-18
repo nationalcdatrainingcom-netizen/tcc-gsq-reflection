@@ -1158,33 +1158,44 @@ async function renderAdminView() {
 }
 
 function newUser() {
-  openModal('Add User', `
+  const body = `
     <div class="form-row"><div class="fg"><label>Name</label><input id="mu-name" type="text" placeholder="Full name"></div><div class="fg"><label>Username</label><input id="mu-user" type="text" placeholder="username"></div></div>
     <div class="form-row"><div class="fg"><label>Password</label><input id="mu-pass" type="password" placeholder="Password"></div><div class="fg"><label>Role</label><select id="mu-role"><option value="director">Director</option><option value="admin">Admin</option></select></div></div>
-    <div class="fg"><label>Location (for directors)</label><select id="mu-loc"><option value="">— None —</option>${locations.map(l=>`<option value="${l._id}">${l.name}</option>`).join('')}</select></div>`,
-    [{label:'Save', cls:'btn-navy', fn: async () => {
-      await fetch('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-        username:document.getElementById('mu-user').value,password:document.getElementById('mu-pass').value,
-        name:document.getElementById('mu-name').value,role:document.getElementById('mu-role').value,
-        locationId:document.getElementById('mu-loc').value||null
-      })});
-      closeModal(); renderAdminView(); toast('User created ✓','ok');
-    }}]
-  );
+    <div class="fg"><label>Location (for directors)</label><select id="mu-loc"><option value="">— None —</option>${locations.map(l=>`<option value="${l._id}">${l.name}</option>`).join('')}</select></div>`;
+
+  window._modalAction = async () => {
+    await fetch('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      username:document.getElementById('mu-user').value,password:document.getElementById('mu-pass').value,
+      name:document.getElementById('mu-name').value,role:document.getElementById('mu-role').value,
+      locationId:document.getElementById('mu-loc').value||null
+    })});
+    closeModal(); renderAdminView(); toast('User created ✓','ok');
+  };
+
+  document.getElementById('modalTitle').textContent = 'Add User';
+  document.getElementById('modalBody').innerHTML = body;
+  document.getElementById('modalFoot').innerHTML = `<button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-navy" onclick="window._modalAction()">Save</button>`;
+  document.getElementById('genericModal').classList.add('open');
 }
 
 function editUser(id, username, name, role, locId) {
-  openModal('Edit User', `
+  const body = `
     <div class="form-row"><div class="fg"><label>Name</label><input id="eu-name" type="text" value="${name}"></div><div class="fg"><label>Role</label><select id="eu-role"><option value="director" ${role==='director'?'selected':''}>Director</option><option value="admin" ${role==='admin'?'selected':''}>Admin</option></select></div></div>
     <div class="fg" style="margin-bottom:12px"><label>Location</label><select id="eu-loc"><option value="">— None —</option>${locations.map(l=>`<option value="${l._id}" ${l._id===locId?'selected':''}>${l.name}</option>`).join('')}</select></div>
-    <div class="fg"><label>New Password (leave blank to keep)</label><input id="eu-pass" type="password" placeholder="New password"></div>`,
-    [{label:'Save', cls:'btn-navy', fn: async () => {
-      const payload = {_id:id,name:document.getElementById('eu-name').value,role:document.getElementById('eu-role').value,locationId:document.getElementById('eu-loc').value||null};
-      const p = document.getElementById('eu-pass').value; if (p) payload.password = p;
-      await fetch('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-      closeModal(); renderAdminView(); toast('User updated ✓','ok');
-    }}]
-  );
+    <div class="fg"><label>New Password (leave blank to keep)</label><input id="eu-pass" type="password" placeholder="New password"></div>`;
+
+  window._modalAction = async () => {
+    const payload = {_id:id, name:document.getElementById('eu-name').value, role:document.getElementById('eu-role').value, locationId:document.getElementById('eu-loc').value||null};
+    const p = document.getElementById('eu-pass').value; if (p) payload.password = p;
+    const r = await fetch('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if (!r.ok) { const d = await r.json(); toast('Save failed: ' + (d.error||'Unknown error'), 'err'); return; }
+    closeModal(); renderAdminView(); toast('User updated ✓','ok');
+  };
+
+  document.getElementById('modalTitle').textContent = 'Edit User';
+  document.getElementById('modalBody').innerHTML = body;
+  document.getElementById('modalFoot').innerHTML = `<button class="btn btn-outline" onclick="closeModal()">Cancel</button><button class="btn btn-navy" onclick="window._modalAction()">Save</button>`;
+  document.getElementById('genericModal').classList.add('open');
 }
 
 async function deleteUser(id) {
