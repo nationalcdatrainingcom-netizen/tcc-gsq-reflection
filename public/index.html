@@ -344,12 +344,12 @@ textarea.narr:focus{outline:none;border-color:var(--gold);background:white}
     <div class="loc-switcher" id="locSwitcher"></div>
     <div class="topbar-spacer"></div>
     <nav class="nav-tabs">
-      <button class="nav-tab active" onclick="showView('dashboard',this)">📊 Dashboard</button>
-      <button class="nav-tab" onclick="showView('reflection',this)">📋 Self-Reflection</button>
-      <button class="nav-tab" onclick="showView('documents',this)">📁 Documents</button>
-      <button class="nav-tab" onclick="showView('evidence',this)">📎 Evidence Tracker</button>
-      <button class="nav-tab" onclick="showView('report',this)">📊 Readiness Report</button>
-      <button class="nav-tab" onclick="showView('assignments',this)" id="navAssignments">📋 My Assignments</button>
+      <button class="nav-tab" id="navDashboard" onclick="showView('dashboard',this)">📊 Dashboard</button>
+      <button class="nav-tab" id="navReflection" onclick="showView('reflection',this)">📋 Self-Reflection</button>
+      <button class="nav-tab" id="navDocuments" onclick="showView('documents',this)">📁 Documents</button>
+      <button class="nav-tab" id="navEvidence" onclick="showView('evidence',this)">📎 Evidence Tracker</button>
+      <button class="nav-tab" id="navReport" onclick="showView('report',this)">📊 Readiness Report</button>
+      <button class="nav-tab" id="navAssignments" onclick="showView('assignments',this)">📋 My Assignments</button>
       <button class="nav-tab admin-only" onclick="showView('admin',this)" style="display:none">⚙️ Admin</button>
     </nav>
     <div class="user-pill" id="userPill">
@@ -463,16 +463,20 @@ async function initApp() {
   if (me.role === 'admin') renderAdminView();
   renderSettingsView();
 
-  // Show/hide assignments tab based on role
-  const navAsgn = document.getElementById('navAssignments');
-  if (navAsgn) {
-    // Show for everyone - admin sees all assignments, directors see their own
-    navAsgn.style.display = '';
-    if (me.role !== 'admin') {
-      navAsgn.textContent = '📋 My Assignments';
-    } else {
-      navAsgn.textContent = '📋 Assignments';
-    }
+  // Director role restrictions: only see My Assignments + Readiness Report
+  if (me.role === 'director') {
+    ['navDashboard','navReflection','navDocuments','navEvidence'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+    document.getElementById('navAssignments').textContent = '📋 My Assignments';
+    document.getElementById('navReport').textContent = '📊 Readiness Report';
+    // Start directors on My Assignments
+    showView('assignments', document.getElementById('navAssignments'));
+    document.getElementById('navAssignments').classList.add('active');
+  } else {
+    document.getElementById('navAssignments').textContent = '📋 Assignments';
+    document.getElementById('navDashboard').classList.add('active');
   }
 }
 
@@ -1839,6 +1843,7 @@ async function renderAssignmentsView() {
             html += `<button class="btn btn-sm btn-outline" onclick="updateAssignmentStatus('${a._id}','in-progress')">🔄 Mark In Progress</button>`;
           }
           html += `<button class="btn btn-sm btn-gold" onclick="uploadAssignmentFile('${a._id}')">⬆️ Upload Evidence</button>`;
+          html += `<button class="btn btn-sm btn-navy" onclick="scanOpen('${a._id}')">📷 Scan</button>`;
         }
         if (isAdmin) {
           html += `<button class="btn btn-sm btn-red" onclick="deleteAssignment('${a._id}')">🗑️ Remove</button>`;
@@ -1906,7 +1911,387 @@ async function deleteAssignment(id) {
   await loadAssignments();
   renderAssignmentsView();
 }
+// ═══════════════════════════════════════════
+// DOCUMENT SCANNER
+// ═══════════════════════════════════════════
+let scanStream = null, scanTorchTrack = null, scanTorchOn = false;
+let scanEdgeInterval = null, scanLastDetected = null;
+let scanRawCanvas = null, scanAdjCorners = null, scanDragging = null;
+let scanAssignmentId = null; // which assignment this scan is for
+
+function scanOpen(assignmentId) {
+  scanAssignmentId = assignmentId || null;
+  document.getElementById('scanOverlay').style.display = 'flex';
+  scanStartCamera();
+}
+
+function scanClose() {
+  scanStopCamera();
+  document.getElementById('scanOverlay').style.display = 'none';
+  scanAssignmentId = null;
+  scanRawCanvas = null; scanAdjCorners = null; scanLastDetected = null;
+}
+
+async function scanStartCamera() {
+  const video = document.getElementById('scanVideo');
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false
+    });
+    video.srcObject = scanStream;
+    await video.play();
+
+    // Torch
+    scanTorchTrack = scanStream.getVideoTracks()[0];
+    const cap = scanTorchTrack.getCapabilities ? scanTorchTrack.getCapabilities() : {};
+    const torchBtn = document.getElementById('scanTorchBtn');
+    if (cap.torch) {
+      torchBtn.style.display = 'block';
+      scanTorchOn = false;
+    } else {
+      torchBtn.style.display = 'none';
+    }
+
+    // Start edge detection
+    video.addEventListener('loadedmetadata', () => scanStartEdgeDetect(), { once: true });
+    setTimeout(scanStartEdgeDetect, 500);
+  } catch (e) {
+    toast('Camera not available: ' + e.message, 'err');
+    scanClose();
+  }
+}
+
+function scanStopCamera() {
+  scanStopEdgeDetect();
+  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+  const video = document.getElementById('scanVideo');
+  if (video) video.srcObject = null;
+  scanTorchTrack = null; scanTorchOn = false;
+}
+
+async function scanToggleTorch() {
+  if (!scanTorchTrack) return;
+  scanTorchOn = !scanTorchOn;
+  try {
+    await scanTorchTrack.applyConstraints({ advanced: [{ torch: scanTorchOn }] });
+    document.getElementById('scanTorchBtn').style.background = scanTorchOn ? 'rgba(255,200,50,.5)' : 'rgba(255,255,255,.15)';
+  } catch (e) {}
+}
+
+// ── LIVE EDGE DETECTION ──
+function scanStartEdgeDetect() {
+  if (scanEdgeInterval) clearInterval(scanEdgeInterval);
+  scanEdgeInterval = setInterval(scanRunEdge, 220);
+}
+function scanStopEdgeDetect() {
+  if (scanEdgeInterval) { clearInterval(scanEdgeInterval); scanEdgeInterval = null; }
+  const c = document.getElementById('edgeCanvas');
+  if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
+}
+
+function scanRunEdge() {
+  const video = document.getElementById('scanVideo');
+  if (!video || !video.videoWidth) return;
+  const THUMB = 320, vW = video.videoWidth, vH = video.videoHeight;
+  const scale = THUMB / Math.max(vW, vH);
+  const tW = Math.round(vW * scale), tH = Math.round(vH * scale);
+  const tc = document.createElement('canvas'); tc.width = tW; tc.height = tH;
+  const tCtx = tc.getContext('2d'); tCtx.drawImage(video, 0, 0, tW, tH);
+  const corners = scanDetectCorners(tCtx, tW, tH);
+
+  const ec = document.getElementById('edgeCanvas');
+  const dW = window.innerWidth, dH = window.innerHeight;
+  ec.width = dW; ec.height = dH;
+  const ctx = ec.getContext('2d'); ctx.clearRect(0, 0, dW, dH);
+  const hint = document.getElementById('scanHint');
+  const shutter = document.getElementById('scanShutterBtn');
+
+  if (corners) {
+    scanLastDetected = corners;
+    // Map normalized corners to screen, accounting for object-fit:cover
+    const vAR = vW / vH, sAR = dW / dH;
+    let ox = 0, oy = 0, sw = dW, sh = dH;
+    if (vAR > sAR) { const visW = dH * vAR; ox = (visW - dW) / 2; sw = visW; }
+    else { const visH = dW / vAR; oy = (visH - dH) / 2; sh = visH; }
+
+    const pts = corners.map(c => ({ x: c.x * sw - ox, y: c.y * sh - oy }));
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < 4; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    ctx.closePath();
+    ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = 'rgba(74,222,128,.08)'; ctx.fill();
+    pts.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI * 2); ctx.fillStyle = '#4ade80'; ctx.fill(); });
+
+    if (hint) hint.textContent = '✓ Document detected — tap shutter';
+    if (shutter) shutter.style.borderColor = '#4ade80';
+  } else {
+    scanLastDetected = null;
+    if (hint) hint.textContent = 'Point camera at document';
+    if (shutter) shutter.style.borderColor = 'white';
+  }
+}
+
+function scanDetectCorners(ctx, W, H) {
+  const d = ctx.getImageData(0, 0, W, H).data;
+  const grey = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) grey[i] = (d[i * 4] * 77 + d[i * 4 + 1] * 150 + d[i * 4 + 2] * 29) >> 8;
+
+  const edge = new Float32Array(W * H); let maxE = 0;
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    const gx = -grey[(y-1)*W+(x-1)]+grey[(y-1)*W+(x+1)]-2*grey[y*W+(x-1)]+2*grey[y*W+(x+1)]-grey[(y+1)*W+(x-1)]+grey[(y+1)*W+(x+1)];
+    const gy = -grey[(y-1)*W+(x-1)]-2*grey[(y-1)*W+x]-grey[(y-1)*W+(x+1)]+grey[(y+1)*W+(x-1)]+2*grey[(y+1)*W+x]+grey[(y+1)*W+(x+1)];
+    const m = Math.sqrt(gx * gx + gy * gy); edge[y * W + x] = m; if (m > maxE) maxE = m;
+  }
+  if (maxE < 60) return null;
+
+  const thresh = Math.max(maxE * 0.35, 60);
+  let edgeCount = 0;
+  for (let i = 0; i < edge.length; i++) if (edge[i] >= thresh) edgeCount++;
+  if (edgeCount < W * H * 0.015) return null;
+
+  const mg = Math.floor(Math.min(W, H) * 0.05);
+  const best = { tl: { d: Infinity }, tr: { d: Infinity }, br: { d: Infinity }, bl: { d: Infinity } };
+  const halfW = W / 2, halfH = H / 2;
+  for (let y = mg; y < H - mg; y++) for (let x = mg; x < W - mg; x++) {
+    if (edge[y * W + x] < thresh) continue;
+    if (x < halfW && y < halfH) { const dv = x * x + y * y; if (dv < best.tl.d) best.tl = { x, y, d: dv }; }
+    if (x > halfW && y < halfH) { const dv = (W - x) * (W - x) + y * y; if (dv < best.tr.d) best.tr = { x, y, d: dv }; }
+    if (x > halfW && y > halfH) { const dv = (W - x) * (W - x) + (H - y) * (H - y); if (dv < best.br.d) best.br = { x, y, d: dv }; }
+    if (x < halfW && y > halfH) { const dv = x * x + (H - y) * (H - y); if (dv < best.bl.d) best.bl = { x, y, d: dv }; }
+  }
+  if (best.tl.d === Infinity || best.tr.d === Infinity || best.br.d === Infinity || best.bl.d === Infinity) return null;
+
+  const tl = { x: best.tl.x / W, y: best.tl.y / H };
+  const tr = { x: best.tr.x / W, y: best.tr.y / H };
+  const br = { x: best.br.x / W, y: best.br.y / H };
+  const bl = { x: best.bl.x / W, y: best.bl.y / H };
+
+  // Add slight padding
+  const pad = 0.015;
+  tl.x = Math.max(0, tl.x - pad); tl.y = Math.max(0, tl.y - pad);
+  tr.x = Math.min(1, tr.x + pad); tr.y = Math.max(0, tr.y - pad);
+  br.x = Math.min(1, br.x + pad); br.y = Math.min(1, br.y + pad);
+  bl.x = Math.max(0, bl.x - pad); bl.y = Math.min(1, bl.y + pad);
+
+  const area = scanQuadArea([tl, tr, br, bl]);
+  if (area < 0.10 || area > 0.95) return null;
+  const sdist = (a, b) => Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+  if (sdist(tl, tr) < 0.15 || sdist(tl, bl) < 0.15) return null;
+  if (tl.x > 0.6 || tr.x < 0.4 || br.y < 0.4 || bl.x > 0.6) return null;
+
+  return [tl, tr, br, bl];
+}
+
+function scanQuadArea(pts) {
+  let a = 0;
+  for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; a += pts[i].x * pts[j].y - pts[j].x * pts[i].y; }
+  return Math.abs(a) / 2;
+}
+
+// ── CAPTURE: freeze frame ──
+function scanCapture() {
+  scanStopEdgeDetect();
+  const video = document.getElementById('scanVideo');
+  const fc = document.getElementById('freezeCanvas');
+  const W = window.innerWidth, H = window.innerHeight;
+  fc.width = W; fc.height = H;
+  const ctx = fc.getContext('2d');
+
+  // Draw video frame with same crop as object-fit:cover
+  const vW = video.videoWidth, vH = video.videoHeight;
+  const vAR = vW / vH, sAR = W / H;
+  let sx = 0, sy = 0, sw = vW, sh = vH;
+  if (vAR > sAR) { sw = vH * sAR; sx = (vW - sw) / 2; }
+  else { sh = vW / sAR; sy = (vH - sh) / 2; }
+  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, W, H);
+  fc.style.display = 'block';
+
+  // Save raw full-res canvas for final crop
+  scanRawCanvas = document.createElement('canvas');
+  scanRawCanvas.width = vW; scanRawCanvas.height = vH;
+  scanRawCanvas.getContext('2d').drawImage(video, 0, 0);
+
+  // Run high-res detection on frozen frame
+  const TSIZE = 800;
+  const sc = TSIZE / Math.max(W, H);
+  const tW = Math.round(W * sc), tH = Math.round(H * sc);
+  const tc = document.createElement('canvas'); tc.width = tW; tc.height = tH;
+  tc.getContext('2d').drawImage(fc, 0, 0, tW, tH);
+  const detected = scanDetectCorners(tc.getContext('2d'), tW, tH);
+
+  // Place corner handles
+  if (detected) {
+    scanAdjCorners = { tl: { x: detected[0].x * W, y: detected[0].y * H }, tr: { x: detected[1].x * W, y: detected[1].y * H }, br: { x: detected[2].x * W, y: detected[2].y * H }, bl: { x: detected[3].x * W, y: detected[3].y * H } };
+  } else {
+    const m = 40;
+    scanAdjCorners = { tl: { x: m, y: m }, tr: { x: W - m, y: m }, br: { x: W - m, y: H - m }, bl: { x: m, y: H - m } };
+  }
+
+  scanDrawHandles();
+  // Switch controls
+  document.getElementById('scanControlsLive').style.display = 'none';
+  document.getElementById('scanControlsFreeze').style.display = 'flex';
+  document.getElementById('scanHint').textContent = 'Adjust corners if needed';
+
+  // Touch/mouse drag for handles
+  const svg = document.getElementById('freezeAdjSvg');
+  svg.style.display = 'block';
+  svg.onmousedown = svg.ontouchstart = (e) => {
+    const pt = e.touches ? e.touches[0] : e;
+    const x = pt.clientX, y = pt.clientY;
+    let closest = null, minD = 55;
+    ['tl', 'tr', 'br', 'bl'].forEach(k => {
+      const dx = scanAdjCorners[k].x - x, dy = scanAdjCorners[k].y - y;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d < minD) { minD = d; closest = k; }
+    });
+    scanDragging = closest;
+  };
+  svg.onmousemove = svg.ontouchmove = (e) => {
+    if (!scanDragging) return;
+    e.preventDefault();
+    const pt = e.touches ? e.touches[0] : e;
+    scanAdjCorners[scanDragging] = { x: pt.clientX, y: pt.clientY };
+    scanDrawHandles();
+  };
+  svg.onmouseup = svg.ontouchend = () => { scanDragging = null; };
+}
+
+function scanDrawHandles() {
+  const svg = document.getElementById('freezeAdjSvg');
+  const W = window.innerWidth, H = window.innerHeight;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const c = scanAdjCorners;
+  svg.innerHTML = `
+    <polygon points="${c.tl.x},${c.tl.y} ${c.tr.x},${c.tr.y} ${c.br.x},${c.br.y} ${c.bl.x},${c.bl.y}"
+      fill="rgba(200,151,58,.12)" stroke="var(--gold)" stroke-width="2.5"/>
+    ${['tl', 'tr', 'br', 'bl'].map(k => `<circle cx="${c[k].x}" cy="${c[k].y}" r="14" fill="var(--gold)" stroke="white" stroke-width="2.5" style="cursor:grab"/>`).join('')}
+  `;
+}
+
+function scanRetake() {
+  document.getElementById('freezeCanvas').style.display = 'none';
+  document.getElementById('freezeAdjSvg').style.display = 'none';
+  document.getElementById('scanControlsFreeze').style.display = 'none';
+  document.getElementById('scanControlsLive').style.display = 'flex';
+  document.getElementById('scanHint').textContent = 'Point camera at document';
+  const btn = document.getElementById('scanUseBtn');
+  btn.textContent = '✓ Use This Scan'; btn.disabled = false;
+  scanRawCanvas = null; scanAdjCorners = null;
+  scanStartEdgeDetect();
+}
+
+function scanUsePage() {
+  if (!scanAdjCorners || !scanRawCanvas) return;
+  const btn = document.getElementById('scanUseBtn');
+  btn.textContent = 'Processing…'; btn.disabled = true;
+
+  const W = window.innerWidth, H = window.innerHeight;
+  const vW = scanRawCanvas.width, vH = scanRawCanvas.height;
+  const vAR = vW / vH, sAR = W / H;
+  let sx = 0, sy = 0, sw = vW, sh = vH;
+  if (vAR > sAR) { sw = vH * sAR; sx = (vW - sw) / 2; }
+  else { sh = vW / sAR; sy = (vH - sh) / 2; }
+  const scX = sw / W, scY = sh / H;
+
+  const src = {};
+  ['tl', 'tr', 'br', 'bl'].forEach(k => {
+    src[k] = { x: sx + scanAdjCorners[k].x * scX, y: sy + scanAdjCorners[k].y * scY };
+  });
+
+  const sdist = (a, b) => Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+  const outW = Math.round(Math.max(sdist(src.tl, src.tr), sdist(src.bl, src.br)));
+  const outH = Math.round(Math.max(sdist(src.tl, src.bl), sdist(src.tr, src.br)));
+  const rc = document.createElement('canvas'); rc.width = outW; rc.height = outH;
+  scanPerspectiveWarp(scanRawCanvas, rc, src, outW, outH);
+
+  // Convert to PDF using jsPDF
+  rc.toBlob(async (blob) => {
+    try {
+      const imgUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ orientation: outW > outH ? 'landscape' : 'portrait', unit: 'px', format: [outW, outH] });
+      pdf.addImage(imgUrl, 'JPEG', 0, 0, outW, outH);
+      const pdfBlob = pdf.output('blob');
+      const pdfFile = new File([pdfBlob], `scan-${Date.now()}.pdf`, { type: 'application/pdf' });
+
+      // Upload to the assignment
+      if (scanAssignmentId) {
+        const fd = new FormData();
+        fd.append('file', pdfFile);
+        fd.append('notes', 'Scanned from phone');
+        const r = await fetch(`/api/assignments/${scanAssignmentId}/upload`, { method: 'POST', body: fd });
+        const d = await r.json();
+        if (d.error) throw new Error(d.error);
+        toast('Scanned & uploaded ✅', 'ok');
+        scanClose();
+        await loadAssignments();
+        renderAssignmentsView();
+      } else {
+        // Fallback: download the PDF
+        const url = URL.createObjectURL(pdfBlob);
+        const a = document.createElement('a'); a.href = url; a.download = pdfFile.name; a.click();
+        URL.revokeObjectURL(url);
+        toast('PDF saved ✓', 'ok');
+        scanClose();
+      }
+    } catch (e) {
+      toast('Scan failed: ' + e.message, 'err');
+      btn.textContent = '✓ Use This Scan'; btn.disabled = false;
+    }
+  }, 'image/jpeg', 0.92);
+}
+
+function scanPerspectiveWarp(srcCanvas, dstCanvas, corners, dW, dH) {
+  const sCtx = srcCanvas.getContext('2d');
+  const dCtx = dstCanvas.getContext('2d');
+  const imgData = dCtx.createImageData(dW, dH);
+  const srcData = sCtx.getImageData(0, 0, srcCanvas.width, srcCanvas.height);
+  const sW = srcCanvas.width;
+
+  for (let dy = 0; dy < dH; dy++) {
+    const ty = dy / dH;
+    for (let dx = 0; dx < dW; dx++) {
+      const tx = dx / dW;
+      // Bilinear interpolation of quad corners
+      const topX = corners.tl.x + (corners.tr.x - corners.tl.x) * tx;
+      const topY = corners.tl.y + (corners.tr.y - corners.tl.y) * tx;
+      const botX = corners.bl.x + (corners.br.x - corners.bl.x) * tx;
+      const botY = corners.bl.y + (corners.br.y - corners.bl.y) * tx;
+      const sx = Math.round(topX + (botX - topX) * ty);
+      const sy = Math.round(topY + (botY - topY) * ty);
+      const si = (sy * sW + sx) * 4;
+      const di = (dy * dW + dx) * 4;
+      imgData.data[di] = srcData.data[si];
+      imgData.data[di + 1] = srcData.data[si + 1];
+      imgData.data[di + 2] = srcData.data[si + 2];
+      imgData.data[di + 3] = 255;
+    }
+  }
+  dCtx.putImageData(imgData, 0, 0);
+}
 
 </script>
+<!-- SCAN OVERLAY -->
+<div id="scanOverlay" style="display:none;position:fixed;inset:0;z-index:500;background:#000;flex-direction:column">
+  <video id="scanVideo" autoplay playsinline muted style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"></video>
+  <canvas id="edgeCanvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"></canvas>
+  <canvas id="freezeCanvas" style="position:absolute;inset:0;width:100%;height:100%;display:none"></canvas>
+  <svg id="freezeAdjSvg" style="position:absolute;inset:0;width:100%;height:100%;display:none;touch-action:none"></svg>
+  <div id="scanHint" style="position:absolute;top:env(safe-area-inset-top,12px);left:0;right:0;text-align:center;padding:10px;font-size:.85rem;font-weight:600;color:white;text-shadow:0 1px 4px rgba(0,0,0,.7);z-index:2">Point camera at document</div>
+  <div id="scanControlsLive" style="position:absolute;bottom:0;left:0;right:0;padding:20px 24px calc(env(safe-area-inset-bottom,12px) + 16px);display:flex;align-items:center;justify-content:space-between;z-index:3">
+    <button id="scanTorchBtn" onclick="scanToggleTorch()" style="width:44px;height:44px;border-radius:50%;border:none;background:rgba(255,255,255,.15);color:white;font-size:1.2rem;cursor:pointer;display:none">🔦</button>
+    <button id="scanShutterBtn" onclick="scanCapture()" style="width:68px;height:68px;border-radius:50%;border:4px solid white;background:rgba(255,255,255,.2);cursor:pointer;transition:all .2s"></button>
+    <button onclick="scanClose()" style="width:44px;height:44px;border-radius:50%;border:none;background:rgba(255,255,255,.15);color:white;font-size:1.1rem;cursor:pointer">✕</button>
+  </div>
+  <div id="scanControlsFreeze" style="position:absolute;bottom:0;left:0;right:0;padding:20px 24px calc(env(safe-area-inset-bottom,12px) + 16px);display:none;align-items:center;justify-content:center;gap:16px;z-index:3">
+    <button onclick="scanRetake()" style="padding:12px 24px;border-radius:10px;border:none;background:rgba(255,255,255,.2);color:white;font-size:.9rem;font-weight:700;cursor:pointer">↩ Retake</button>
+    <button id="scanUseBtn" onclick="scanUsePage()" style="padding:12px 24px;border-radius:10px;border:none;background:var(--gold);color:var(--navy);font-size:.9rem;font-weight:700;cursor:pointer">✓ Use This Scan</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>
 </html>
