@@ -576,7 +576,7 @@ app.patch('/api/assignments/:id', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Director: upload file for an assignment
+// Director: upload file for an assignment (appends to files array — supports multiple uploads)
 app.post('/api/assignments/:id/upload', requireAuth, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file' });
@@ -586,12 +586,38 @@ app.post('/api/assignments/:id/upload', requireAuth, upload.single('file'), asyn
       return res.status(403).json({ error: 'Not your assignment' });
     }
 
-    // Mark assignment completed
+    // Build new file entry
+    const fileEntry = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      notes: req.body.notes || '',
+      uploadedAt: new Date()
+    };
+
+    // Append to files array (migrate from old single-file format if needed)
+    const existingFiles = assignment.files || [];
+    // Migrate: if old format had uploadedFilename but no files array, convert it
+    if (!assignment.files && assignment.uploadedFilename) {
+      existingFiles.push({
+        id: 'legacy',
+        filename: assignment.uploadedFilename,
+        originalName: assignment.uploadedOriginalName || 'Uploaded file',
+        uploadedAt: assignment.completedAt || assignment.updatedAt
+      });
+    }
+    existingFiles.push(fileEntry);
+
+    // Update assignment — mark in-progress if was pending, but don't auto-complete
+    const newStatus = assignment.status === 'pending' ? 'in-progress' : assignment.status;
     await db.assignments.update({ _id: req.params.id }, { $set: {
-      status: 'completed',
-      completedAt: new Date(),
-      uploadedFilename: req.file.filename,
-      uploadedOriginalName: req.file.originalname,
+      files: existingFiles,
+      status: newStatus,
+      // Keep legacy fields for backward compat
+      uploadedFilename: fileEntry.filename,
+      uploadedOriginalName: fileEntry.originalName,
       updatedAt: new Date()
     }});
 
@@ -602,7 +628,7 @@ app.post('/api/assignments/:id/upload', requireAuth, upload.single('file'), asyn
       evidenceLabel: assignment.evidenceLabel,
       locationId: assignment.locationId,
       status: 'uploaded',
-      notes: req.body.notes || `Uploaded by director`,
+      notes: req.body.notes || 'Uploaded by director',
       filename: req.file.filename,
       originalName: req.file.originalname,
       mimetype: req.file.mimetype,
@@ -611,6 +637,65 @@ app.post('/api/assignments/:id/upload', requireAuth, upload.single('file'), asyn
       updatedAt: new Date()
     });
 
+    res.json({ ok: true, fileCount: existingFiles.length });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Director: delete a specific file from an assignment
+app.delete('/api/assignments/:id/file/:fileId', requireAuth, async (req, res) => {
+  try {
+    const assignment = await db.assignments.findOne({ _id: req.params.id });
+    if (!assignment) return res.status(404).json({ error: 'Not found' });
+    if (req.session.role !== 'admin' && assignment.assignedTo !== req.session.userId) {
+      return res.status(403).json({ error: 'Not your assignment' });
+    }
+
+    const files = assignment.files || [];
+    const fileIdx = files.findIndex(f => f.id === req.params.fileId);
+    if (fileIdx === -1) return res.status(404).json({ error: 'File not found' });
+
+    // Delete physical file
+    const file = files[fileIdx];
+    if (file.filename) {
+      const fp = path.join(UPLOADS_DIR, file.filename);
+      if (fs.existsSync(fp)) fs.unlinkSync(fp);
+    }
+
+    // Remove from array
+    files.splice(fileIdx, 1);
+
+    // If no files left, revert status to pending
+    const newStatus = files.length === 0 ? 'pending' : assignment.status;
+    await db.assignments.update({ _id: req.params.id }, { $set: {
+      files,
+      status: newStatus === 'completed' && files.length === 0 ? 'pending' : newStatus,
+      uploadedFilename: files.length > 0 ? files[files.length - 1].filename : null,
+      uploadedOriginalName: files.length > 0 ? files[files.length - 1].originalName : null,
+      updatedAt: new Date()
+    }});
+
+    // Also remove from tracker
+    if (file.filename) {
+      await db.todoItems.remove({ filename: file.filename }, {});
+    }
+
+    res.json({ ok: true, filesRemaining: files.length });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Director: mark assignment as complete (separate from uploading)
+app.post('/api/assignments/:id/complete', requireAuth, async (req, res) => {
+  try {
+    const assignment = await db.assignments.findOne({ _id: req.params.id });
+    if (!assignment) return res.status(404).json({ error: 'Not found' });
+    if (req.session.role !== 'admin' && assignment.assignedTo !== req.session.userId) {
+      return res.status(403).json({ error: 'Not your assignment' });
+    }
+    await db.assignments.update({ _id: req.params.id }, { $set: {
+      status: 'completed',
+      completedAt: new Date(),
+      updatedAt: new Date()
+    }});
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
