@@ -416,7 +416,7 @@ async function doLogin() {
     const r = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username:u,password:p}) });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Login failed');
-    me = { role: d.user.role, locationId: d.user.locationId, name: d.user.name };
+    me = { role: d.user.role, locationId: d.user.locationId, name: d.user.name, userId: d.user._id };
     await initApp();
   } catch(e) { err.textContent = e.message; }
   btn.innerHTML = 'Sign In'; btn.disabled = false;
@@ -1265,7 +1265,7 @@ function toast(msg, type) {
 (async () => {
   const auth = await checkAuth();
   if (auth.loggedIn) {
-    me = { role: auth.role, locationId: auth.locationId };
+    me = { role: auth.role, locationId: auth.locationId, userId: auth.userId };
     const meRes = await fetch('/api/auth/me');
     me.name = auth.role === 'admin' ? 'Admin' : auth.locationId;
     await initApp();
@@ -1851,22 +1851,43 @@ async function renderAssignmentsView() {
 
         if (a.notes) html += `<div class="asgn-card-notes">📝 ${a.notes}</div>`;
 
-        // Show uploaded file if completed
-        if (a.status === 'completed' && a.uploadedFilename) {
-          html += `<div style="margin-top:.5rem;padding:.5rem .75rem;background:var(--green-bg);border-radius:8px;font-size:.82rem">
-            📎 <strong>${a.uploadedOriginalName || 'Uploaded file'}</strong>
-            <a href="/uploads/${a.uploadedFilename}" target="_blank" class="btn btn-outline btn-xs" style="margin-left:.5rem">👁 View</a>
-          </div>`;
+        // Show all uploaded files (supports multiple)
+        const files = a.files || [];
+        // Backward compat: if no files array but has uploadedFilename
+        if (!files.length && a.uploadedFilename) {
+          files.push({ id: 'legacy', filename: a.uploadedFilename, originalName: a.uploadedOriginalName || 'Uploaded file', uploadedAt: a.completedAt });
+        }
+        if (files.length > 0) {
+          html += `<div style="margin-top:.5rem">`;
+          files.forEach(f => {
+            html += `<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem .75rem;background:var(--green-bg);border-radius:8px;font-size:.82rem;margin-bottom:4px">
+              <span>📎</span>
+              <strong style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.originalName || 'Uploaded file'}</strong>
+              <a href="/uploads/${f.filename}" target="_blank" class="btn btn-outline btn-xs">👁 View</a>
+              ${!isAdmin || a.status !== 'completed' ? '' : ''}
+              ${((!isAdmin && a.assignedTo === (me.userId || '')) || isAdmin) && f.id ? `<button class="btn btn-red btn-xs" onclick="deleteAssignmentFile('${a._id}','${f.id}')">🗑️</button>` : ''}
+            </div>`;
+          });
+          html += `</div>`;
         }
 
         html += `<div class="asgn-card-actions">`;
         if (!isAdmin && a.status !== 'completed') {
-          // Director actions
+          // Director actions — always show upload/scan even after files are added
           if (a.status === 'pending') {
             html += `<button class="btn btn-sm btn-outline" onclick="updateAssignmentStatus('${a._id}','in-progress')">🔄 Mark In Progress</button>`;
           }
-          html += `<button class="btn btn-sm btn-gold" onclick="uploadAssignmentFile('${a._id}')">⬆️ Upload Evidence</button>`;
+          html += `<button class="btn btn-sm btn-gold" onclick="uploadAssignmentFile('${a._id}')">⬆️ Upload</button>`;
           html += `<button class="btn btn-sm btn-navy" onclick="scanOpen('${a._id}')">📷 Scan</button>`;
+          if (files.length > 0) {
+            html += `<button class="btn btn-sm btn-green" onclick="markAssignmentComplete('${a._id}')">✅ Mark Complete</button>`;
+          }
+        }
+        if (!isAdmin && a.status === 'completed') {
+          // Even after complete, allow adding more files or deleting
+          html += `<button class="btn btn-sm btn-gold" onclick="uploadAssignmentFile('${a._id}')">⬆️ Add More</button>`;
+          html += `<button class="btn btn-sm btn-navy" onclick="scanOpen('${a._id}')">📷 Scan More</button>`;
+          html += `<button class="btn btn-sm btn-outline" onclick="updateAssignmentStatus('${a._id}','in-progress')">↩ Reopen</button>`;
         }
         if (isAdmin) {
           html += `<button class="btn btn-sm btn-red" onclick="deleteAssignment('${a._id}')">🗑️ Remove</button>`;
@@ -1933,6 +1954,29 @@ async function deleteAssignment(id) {
   toast('Assignment removed');
   await loadAssignments();
   renderAssignmentsView();
+}
+
+async function deleteAssignmentFile(assignmentId, fileId) {
+  if (!confirm('Delete this uploaded file?')) return;
+  try {
+    const r = await fetch('/api/assignments/' + assignmentId + '/file/' + fileId, { method: 'DELETE' });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    toast('File deleted ✓', 'ok');
+    await loadAssignments();
+    renderAssignmentsView();
+  } catch (e) { toast('Delete failed: ' + e.message, 'err'); }
+}
+
+async function markAssignmentComplete(assignmentId) {
+  try {
+    const r = await fetch('/api/assignments/' + assignmentId + '/complete', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    toast('Marked complete ✅', 'ok');
+    await loadAssignments();
+    renderAssignmentsView();
+  } catch (e) { toast('Error: ' + e.message, 'err'); }
 }
 // ═══════════════════════════════════════════
 // DOCUMENT SCANNER (v3 — delta drag + multi-page)
