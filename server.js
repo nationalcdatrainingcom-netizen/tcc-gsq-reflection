@@ -708,6 +708,75 @@ app.delete('/api/assignments/:id', requireAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Admin: approve an assignment — copies all files to self-reflection evidence, then removes assignment
+app.post('/api/assignments/:id/approve', requireAdmin, async (req, res) => {
+  try {
+    const assignment = await db.assignments.findOne({ _id: req.params.id });
+    if (!assignment) return res.status(404).json({ error: 'Assignment not found' });
+
+    const files = assignment.files || [];
+    // Backward compat: migrate legacy single file
+    if (!files.length && assignment.uploadedFilename) {
+      files.push({
+        id: 'legacy',
+        filename: assignment.uploadedFilename,
+        originalName: assignment.uploadedOriginalName || 'Uploaded file',
+        mimetype: assignment.mimetype || 'application/octet-stream',
+        size: assignment.size || 0
+      });
+    }
+
+    if (!files.length) return res.status(400).json({ error: 'No files to approve' });
+
+    // Copy each file into db.evidence for the self-reflection File Evidence tab
+    let copied = 0;
+    for (const f of files) {
+      // Check if this file is already in evidence (avoid duplicates)
+      const existing = await db.evidence.findOne({ filename: f.filename, sectionId: assignment.sectionId, itemId: assignment.itemId });
+      if (!existing) {
+        await db.evidence.insert({
+          sectionId: assignment.sectionId,
+          itemId: assignment.itemId,
+          locationId: assignment.locationId,
+          label: f.originalName || 'Director upload',
+          filename: f.filename,
+          originalName: f.originalName,
+          mimetype: f.mimetype || 'application/octet-stream',
+          size: f.size || 0,
+          approvedFrom: 'assignment',
+          assignmentId: assignment._id,
+          createdAt: new Date()
+        });
+        copied++;
+      }
+    }
+
+    // Remove the assignment
+    await db.assignments.remove({ _id: req.params.id }, {});
+
+    res.json({ ok: true, filesCopied: copied });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Admin: reject an assignment — sends it back to in-progress with a note
+app.post('/api/assignments/:id/reject', requireAdmin, async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const assignment = await db.assignments.findOne({ _id: req.params.id });
+    if (!assignment) return res.status(404).json({ error: 'Assignment not found' });
+
+    await db.assignments.update({ _id: req.params.id }, { $set: {
+      status: 'in-progress',
+      completedAt: null,
+      rejectionReason: reason || 'Please review and resubmit',
+      rejectedAt: new Date(),
+      updatedAt: new Date()
+    }});
+
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ─── PROGRESS ──────────────────────────────────────────────────────────────────
 app.get('/api/progress', requireAuth, async (req, res) => {
   try {
