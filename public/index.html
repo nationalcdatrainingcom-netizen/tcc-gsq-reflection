@@ -713,22 +713,32 @@ function insertEvidenceIntoNarrative(itemId) {
   const accepted = (resp.policyMatches || []).filter(m => m.status === 'accepted');
   if (!accepted.length) { toast('No accepted evidence to insert', 'err'); return; }
 
-  const typeLabel = t => ({staff_handbook:'Staff Handbook', family_handbook:'Family Handbook', policy:'Policy Doc', other:'Document'}[t] || 'Document');
-
-  const block = accepted.map(m =>
-    `${m.docName} (${typeLabel(m.docType)}), Page ${m.page}, ${m.excerpt}`
-  ).join('\n\n');
+  // Build short reference for each piece of evidence:
+  // Source, Page #, brief identifying phrase (first ~80 chars of excerpt, ending at a word boundary)
+  const block = accepted.map(m => {
+    // Create a short identifying phrase from the excerpt
+    let phrase = (m.excerpt || '').trim();
+    if (phrase.length > 80) {
+      phrase = phrase.substring(0, 80);
+      const lastSpace = phrase.lastIndexOf(' ');
+      if (lastSpace > 40) phrase = phrase.substring(0, lastSpace);
+      phrase += '...';
+    }
+    // Remove leading quotes/punctuation
+    phrase = phrase.replace(/^["'\u201C\u201D\u2018\u2019]+/, '').trim();
+    return `${m.docName}, Page ${m.page}: "${phrase}"`;
+  }).join('\n');
 
   const textarea = document.getElementById('narr-' + itemId);
   if (!textarea) return;
 
   const existing = textarea.value.trim();
   if (existing) {
-    textarea.value = existing + '\n\n--- Policy Evidence ---\n\n' + block;
+    textarea.value = existing + '\n\n--- Policy Evidence References ---\n' + block;
   } else {
-    textarea.value = block;
+    textarea.value = '--- Policy Evidence References ---\n' + block;
   }
-  toast('Evidence inserted into narrative ✓', 'ok');
+  toast('Evidence references inserted ✓', 'ok');
 }
 
 async function saveNarr(itemId) {
