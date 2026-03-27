@@ -1,4 +1,15 @@
-"dependencies": {
+{
+  "name": "tcc-gsq-self-reflection",
+  "version": "2.0.0",
+  "description": "Great Start to Quality Self-Reflection Tool - The Children's Center",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.0.0",
@@ -10,4 +21,5 @@
     "nedb-promises": "^6.2.0",
     "pdf-parse": "^1.1.1",
     "uuid": "^9.0.0"
+  }
 }
