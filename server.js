@@ -9,10 +9,12 @@ const mammoth = require('mammoth');
 const Datastore = require('nedb-promises');
 const bcrypt = require('bcryptjs');
 const session = require('express-session');
+const jwt = require('jsonwebtoken');
 const GSQ_FRAMEWORK = require('./gsq-framework');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const HUB_JWT_SECRET = process.env.HUB_JWT_SECRET || '';
 
 // Ensure directories exist
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -49,6 +51,49 @@ app.use(session({
   saveUninitialized: false,
   cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 }
 }));
+
+// ─── HUB SSO: Auto-login via JWT token from TCC Hub ──────────────────────────
+app.use(async (req, res, next) => {
+  // Skip if already authenticated
+  if (req.session && req.session.userId) return next();
+
+  // Check for hub_token in query string
+  const token = req.query.hub_token;
+  if (!token || !HUB_JWT_SECRET) return next();
+
+  try {
+    const decoded = jwt.verify(token, HUB_JWT_SECRET);
+    const hubUsername = decoded.username.toLowerCase();
+    const hubRole = decoded.role;
+
+    // Find matching GSQ user by username first
+    let user = await db.users.findOne({ username: hubUsername });
+
+    // If not found and Hub says owner, map to GSQ admin
+    if (!user && hubRole === 'owner') {
+      user = await db.users.findOne({ role: 'admin' });
+    }
+
+    // Try matching by center/locationId for directors
+    if (!user) {
+      const center = decoded.center;
+      if (center && center !== 'all') {
+        user = await db.users.findOne({ locationId: center });
+      }
+    }
+
+    if (user) {
+      req.session.userId = user._id;
+      req.session.role = user.role;
+      req.session.locationId = user.locationId || null;
+      console.log('Hub SSO: auto-logged in', user.username, 'as', user.role);
+    }
+  } catch (e) {
+    console.log('Hub SSO: invalid token -', e.message);
+  }
+  next();
+});
+
 app.use('/uploads', (req, res, next) => {
   if (!req.session.userId) return res.status(401).json({ error: 'Not authenticated' });
   next();
@@ -479,7 +524,6 @@ app.delete('/api/tracker/:id', requireAuth, async (req, res) => {
 app.post('/api/assignments', requireAdmin, async (req, res) => {
   try {
     const { itemId, sectionId, evidenceLabel, locationId, assignedTo, notes, priority } = req.body;
-    // assignedTo = userId of the director
     const existing = await db.assignments.findOne({ itemId, sectionId, evidenceLabel, locationId });
     if (existing) {
       await db.assignments.update({ _id: existing._id }, { $set: {
@@ -506,7 +550,6 @@ app.post('/api/assignments', requireAdmin, async (req, res) => {
 app.post('/api/assignments/bulk', requireAdmin, async (req, res) => {
   try {
     const { items, assignedTo, locationId, notes, priority } = req.body;
-    // items = array of { itemId, sectionId, evidenceLabel }
     const results = [];
     for (const item of items) {
       const existing = await db.assignments.findOne({
@@ -541,11 +584,9 @@ app.get('/api/assignments', requireAuth, async (req, res) => {
     if (req.session.role === 'admin') {
       if (req.query.locationId) query.locationId = req.query.locationId;
     } else {
-      // Directors see assignments assigned to them
       query.assignedTo = req.session.userId;
     }
     const assignments = await db.assignments.find(query);
-    // Enrich with assignee name
     const users = await db.users.find({});
     const userMap = {};
     users.forEach(u => { userMap[u._id] = u.name; });
@@ -557,13 +598,12 @@ app.get('/api/assignments', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Director: update assignment status (e.g. mark in-progress)
+// Director: update assignment status
 app.patch('/api/assignments/:id', requireAuth, async (req, res) => {
   try {
     const { status, notes } = req.body;
     const assignment = await db.assignments.findOne({ _id: req.params.id });
     if (!assignment) return res.status(404).json({ error: 'Not found' });
-    // Directors can only update their own assignments
     if (req.session.role !== 'admin' && assignment.assignedTo !== req.session.userId) {
       return res.status(403).json({ error: 'Not your assignment' });
     }
@@ -576,7 +616,7 @@ app.patch('/api/assignments/:id', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Director: upload file for an assignment (appends to files array — supports multiple uploads)
+// Director: upload file for an assignment
 app.post('/api/assignments/:id/upload', requireAuth, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file' });
@@ -586,7 +626,6 @@ app.post('/api/assignments/:id/upload', requireAuth, upload.single('file'), asyn
       return res.status(403).json({ error: 'Not your assignment' });
     }
 
-    // Build new file entry
     const fileEntry = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       filename: req.file.filename,
@@ -597,9 +636,7 @@ app.post('/api/assignments/:id/upload', requireAuth, upload.single('file'), asyn
       uploadedAt: new Date()
     };
 
-    // Append to files array (migrate from old single-file format if needed)
     const existingFiles = assignment.files || [];
-    // Migrate: if old format had uploadedFilename but no files array, convert it
     if (!assignment.files && assignment.uploadedFilename) {
       existingFiles.push({
         id: 'legacy',
@@ -610,18 +647,15 @@ app.post('/api/assignments/:id/upload', requireAuth, upload.single('file'), asyn
     }
     existingFiles.push(fileEntry);
 
-    // Update assignment — mark in-progress if was pending, but don't auto-complete
     const newStatus = assignment.status === 'pending' ? 'in-progress' : assignment.status;
     await db.assignments.update({ _id: req.params.id }, { $set: {
       files: existingFiles,
       status: newStatus,
-      // Keep legacy fields for backward compat
       uploadedFilename: fileEntry.filename,
       uploadedOriginalName: fileEntry.originalName,
       updatedAt: new Date()
     }});
 
-    // Also create a tracker entry so it shows in the evidence tracker
     await db.todoItems.insert({
       itemId: assignment.itemId,
       sectionId: assignment.sectionId,
@@ -654,17 +688,14 @@ app.delete('/api/assignments/:id/file/:fileId', requireAuth, async (req, res) =>
     const fileIdx = files.findIndex(f => f.id === req.params.fileId);
     if (fileIdx === -1) return res.status(404).json({ error: 'File not found' });
 
-    // Delete physical file
     const file = files[fileIdx];
     if (file.filename) {
       const fp = path.join(UPLOADS_DIR, file.filename);
       if (fs.existsSync(fp)) fs.unlinkSync(fp);
     }
 
-    // Remove from array
     files.splice(fileIdx, 1);
 
-    // If no files left, revert status to pending
     const newStatus = files.length === 0 ? 'pending' : assignment.status;
     await db.assignments.update({ _id: req.params.id }, { $set: {
       files,
@@ -674,7 +705,6 @@ app.delete('/api/assignments/:id/file/:fileId', requireAuth, async (req, res) =>
       updatedAt: new Date()
     }});
 
-    // Also remove from tracker
     if (file.filename) {
       await db.todoItems.remove({ filename: file.filename }, {});
     }
@@ -683,7 +713,7 @@ app.delete('/api/assignments/:id/file/:fileId', requireAuth, async (req, res) =>
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Director: mark assignment as complete (separate from uploading)
+// Director: mark assignment as complete
 app.post('/api/assignments/:id/complete', requireAuth, async (req, res) => {
   try {
     const assignment = await db.assignments.findOne({ _id: req.params.id });
@@ -708,14 +738,13 @@ app.delete('/api/assignments/:id', requireAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Admin: approve an assignment — copies all files to self-reflection evidence, then removes assignment
+// Admin: approve an assignment
 app.post('/api/assignments/:id/approve', requireAdmin, async (req, res) => {
   try {
     const assignment = await db.assignments.findOne({ _id: req.params.id });
     if (!assignment) return res.status(404).json({ error: 'Assignment not found' });
 
     const files = assignment.files || [];
-    // Backward compat: migrate legacy single file
     if (!files.length && assignment.uploadedFilename) {
       files.push({
         id: 'legacy',
@@ -728,10 +757,8 @@ app.post('/api/assignments/:id/approve', requireAdmin, async (req, res) => {
 
     if (!files.length) return res.status(400).json({ error: 'No files to approve' });
 
-    // Copy each file into db.evidence for the self-reflection File Evidence tab
     let copied = 0;
     for (const f of files) {
-      // Check if this file is already in evidence (avoid duplicates)
       const existing = await db.evidence.findOne({ filename: f.filename, sectionId: assignment.sectionId, itemId: assignment.itemId });
       if (!existing) {
         await db.evidence.insert({
@@ -751,14 +778,12 @@ app.post('/api/assignments/:id/approve', requireAdmin, async (req, res) => {
       }
     }
 
-    // Remove the assignment
     await db.assignments.remove({ _id: req.params.id }, {});
-
     res.json({ ok: true, filesCopied: copied });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Admin: reject an assignment — sends it back to in-progress with a note
+// Admin: reject an assignment
 app.post('/api/assignments/:id/reject', requireAdmin, async (req, res) => {
   try {
     const { reason } = req.body;
@@ -800,8 +825,6 @@ app.get('/api/progress', requireAuth, async (req, res) => {
 });
 
 // ─── DEBUG: User diagnostic + password reset (REMOVE AFTER FIXING) ────────────
-// Visit: /api/debug/users to see all users (no passwords shown)
-// Visit: /api/debug/reset-password?username=montessori&newpass=TccDir2025 to force-reset
 app.get('/api/debug/users', async (req, res) => {
   try {
     const users = await db.users.find({});
@@ -826,7 +849,6 @@ app.get('/api/debug/reset-password', async (req, res) => {
     if (!user) return res.json({ error: `User "${username}" not found. Check /api/debug/users for existing usernames.` });
     const hashed = await bcrypt.hash(newpass, 10);
     await db.users.update({ _id: user._id }, { $set: { password: hashed } });
-    // Verify it works
     const verify = await bcrypt.compare(newpass, hashed);
     res.json({ ok: true, message: `Password reset for "${username}". Verified: ${verify}. Try logging in now.` });
   } catch(e) { res.status(500).json({ error: e.message }); }
@@ -842,7 +864,6 @@ app.get('/api/debug/test-login', async (req, res) => {
     res.json({ found: true, username: user.username, passwordMatch: valid, role: user.role, locationId: user.locationId });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
-// ─── END DEBUG (remove the above block after fixing) ──────────────────────────
 
 // ─── STATIC + CATCH-ALL ────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
