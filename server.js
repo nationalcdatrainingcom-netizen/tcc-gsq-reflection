@@ -44,21 +44,32 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
 
+app.set('trust proxy', 1);
 app.use(express.json({ limit: '10mb' }));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'gsq-tcc-secret-2024',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 }
+  cookie: {
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    httpOnly: true
+  }
 }));
 
 // ─── HUB SSO: Auto-login via JWT token from TCC Hub ──────────────────────────
+// This middleware checks for a hub token on EVERY request (via query param or
+// Authorization header) and creates a session. This bypasses the cross-origin
+// cookie problem when running inside the Hub's iframe.
 app.use(async (req, res, next) => {
-  // Skip if already authenticated
+  // Skip if already authenticated via normal session cookie
   if (req.session && req.session.userId) return next();
 
-  // Check for hub_token in query string
-  const token = req.query.hub_token;
+  // Check for hub_token in query string OR Authorization header
+  const token = req.query.hub_token
+    || (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')
+        ? req.headers.authorization.slice(7) : null);
   if (!token || !HUB_JWT_SECRET) return next();
 
   try {
@@ -83,13 +94,13 @@ app.use(async (req, res, next) => {
     }
 
     if (user) {
+      // Set session properties directly on the request (works even without cookies)
       req.session.userId = user._id;
       req.session.role = user.role;
       req.session.locationId = user.locationId || null;
-      console.log('Hub SSO: auto-logged in', user.username, 'as', user.role);
     }
   } catch (e) {
-    console.log('Hub SSO: invalid token -', e.message);
+    // Token expired or invalid — fall through to normal auth
   }
   next();
 });
@@ -868,6 +879,36 @@ app.get('/api/debug/test-login', async (req, res) => {
 // ─── STATIC + CATCH-ALL ────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('*', (req, res) => {
+  const hubToken = req.query.hub_token;
+  if (hubToken) {
+    // Inject a script that patches fetch() to include the token on all API calls
+    const indexPath = path.join(__dirname, 'public', 'index.html');
+    let html = fs.readFileSync(indexPath, 'utf-8');
+    const patchScript = `<script>
+// Hub SSO: patch fetch to include JWT token on all API requests
+(function(){
+  var HUB_TOKEN = ${JSON.stringify(hubToken)};
+  var originalFetch = window.fetch;
+  window.fetch = function(url, opts) {
+    opts = opts || {};
+    if (typeof url === 'string' && url.startsWith('/api/')) {
+      opts.headers = opts.headers || {};
+      if (opts.headers instanceof Headers) {
+        opts.headers.set('Authorization', 'Bearer ' + HUB_TOKEN);
+      } else {
+        opts.headers['Authorization'] = 'Bearer ' + HUB_TOKEN;
+      }
+    }
+    return originalFetch.call(this, url, opts);
+  };
+  // Also patch the auth check to report logged in
+  window._hubSSO = true;
+})();
+</script>`;
+    // Insert before closing </head> tag
+    html = html.replace('</head>', patchScript + '</head>');
+    return res.send(html);
+  }
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
