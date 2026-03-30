@@ -76,21 +76,20 @@ app.use(async (req, res, next) => {
     const decoded = jwt.verify(token, HUB_JWT_SECRET);
     const hubUsername = decoded.username.toLowerCase();
     const hubRole = decoded.role;
+    const hubCenter = decoded.center;
 
     // Find matching GSQ user by username first
     let user = await db.users.findOne({ username: hubUsername });
 
-    // If not found and Hub says owner, map to GSQ admin
-    if (!user && hubRole === 'owner') {
-      user = await db.users.findOne({ role: 'admin' });
+    // 2. For directors, try matching by center/locationId BEFORE owner fallback
+    //    (Hub stores 'peace', GSQ stores locationId: 'peace')
+    if (!user && hubCenter && hubCenter !== 'all') {
+      user = await db.users.findOne({ locationId: hubCenter });
     }
 
-    // Try matching by center/locationId for directors
-    if (!user) {
-      const center = decoded.center;
-      if (center && center !== 'all') {
-        user = await db.users.findOne({ locationId: center });
-      }
+    // 3. Only fall back to admin if the Hub token says owner — NEVER for directors
+    if (!user && hubRole === 'owner') {
+      user = await db.users.findOne({ role: 'admin' });
     }
 
     if (user) {
